@@ -6,7 +6,7 @@ export default defineNuxtConfig({
       oidcClientId: "",
     },
   },
-  modules: ["./modules/auth/index.ts"],
+  modules: ["./modules/auth"],
   compatibilityDate: "2024-11-01",
   devtools: { enabled: true },
 });

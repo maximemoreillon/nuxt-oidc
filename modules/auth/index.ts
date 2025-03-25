@@ -1,6 +1,12 @@
 // `nuxt/kit` is a helper subpath import you can use when defining local modules
 // that means you do not need to add `@nuxt/kit` to your project's dependencies
-import { createResolver, defineNuxtModule, addServerHandler } from "nuxt/kit";
+import {
+  createResolver,
+  defineNuxtModule,
+  addServerHandler,
+  addRouteMiddleware,
+} from "nuxt/kit";
+// import routeMiddleware from "./routeMiddleware";
 
 export default defineNuxtModule({
   meta: {
@@ -11,14 +17,10 @@ export default defineNuxtModule({
 
     console.log("Hi module!");
 
-    // addServerHandler({
-    //   route: "/api/test",
-    //   handler:
-    // })
-    // Add an API route
     addServerHandler({
-      // route: "/api/hello",
-      handler: resolve("./runtime/api-route"),
+      handler: resolve("./server-routes-auth-middleware"),
     });
+
+    // addRouteMiddleware(routeMiddleware);
   },
 });
