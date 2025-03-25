@@ -1,4 +1,5 @@
 // This middleware is only for pages
+// NOTE: this could have been a composable run on layout or something
 import CryptoJS from "crypto-js";
 
 function generateCodeVerifier(length: number) {
