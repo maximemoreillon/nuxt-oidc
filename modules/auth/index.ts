@@ -5,8 +5,9 @@ import {
   defineNuxtModule,
   addServerHandler,
   addRouteMiddleware,
+  addImports,
+  addImportsDir,
 } from "nuxt/kit";
-// import routeMiddleware from "./routeMiddleware";
 
 export default defineNuxtModule({
   meta: {
@@ -14,8 +15,6 @@ export default defineNuxtModule({
   },
   setup() {
     const { resolve } = createResolver(import.meta.url);
-
-    console.log("Hi module!");
 
     addServerHandler({
       handler: resolve("./runtime/serverMiddleware"),
@@ -26,5 +25,13 @@ export default defineNuxtModule({
       path: resolve("./runtime/routeMiddleware"),
       global: true,
     });
+
+    // addImports({
+    //   name: "useAuth",
+    //   as: "useAuth",
+    //   from: resolve("runtime/composables/useAuth"),
+    // });
+
+    addImportsDir(resolve("runtime/composables"));
   },
 });

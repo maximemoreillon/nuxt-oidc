@@ -1,103 +1,56 @@
-import { createPkcePair } from "./pkce";
-import { getOidcConfig, getUser } from "./oidc";
+// Should this really be an auth middleware?
+import { makeExpiryDate } from "./misc";
+import {
+  getOidcConfig,
+  getUser,
+  refreshAccessToken,
+  generateAuthUrl,
+  retrieveToken,
+  createTimeoutForTokenExpiry,
+  saveOidcData,
+} from "./oidc";
+import { useAuth } from "./composables/auth";
 
-async function generateAuthUrl({
-  authorization_endpoint,
-  client_id,
-  redirect_uri,
-}: {
-  authorization_endpoint: string;
-  client_id: string;
-  redirect_uri: string;
-}) {
-  const { verifier, challenge } = createPkcePair();
-
-  const authUrl = new URL(authorization_endpoint);
-
-  authUrl.searchParams.append("response_type", "code");
-  authUrl.searchParams.append("client_id", client_id);
-  authUrl.searchParams.append("scope", "openid profile");
-  authUrl.searchParams.append("code_challenge_method", "S256");
-  authUrl.searchParams.append("code_challenge", challenge);
-  authUrl.searchParams.append("redirect_uri", redirect_uri);
-
-  // TODO: address this
-  // if (extraQueryParams !== undefined) {
-  //   Object.keys(extraQueryParams).forEach((key) => {
-  //     authUrl.searchParams.append(key, extraQueryParams[key]);
-  //   });
-  // }
-
-  useCookie("verifier").value = verifier;
-
-  return authUrl.toString();
-}
-
-async function retrieveToken({
-  code,
-  redirect_uri,
-  token_endpoint,
-  client_id,
-}: {
-  code: string;
-  redirect_uri: string;
-  token_endpoint: string;
-  client_id: string;
-}) {
-  const verifierCookie = useCookie("verifier");
-  const code_verifier = verifierCookie.value;
-  if (!code_verifier) throw new Error("Missing verifier");
-
-  const body = new URLSearchParams({
-    code,
-    code_verifier,
-    redirect_uri,
-    client_id,
-    grant_type: "authorization_code",
-  });
-
-  const options: RequestInit = {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body,
-  };
-
-  const response = await fetch(token_endpoint, options);
-
-  verifierCookie.value = null;
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  return await response.json();
-}
-
-let oidcConfig: any;
+// TODO: replace with composable
+// let oidcConfig: any;
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  const runtimeConfig = useRuntimeConfig();
+  // for some reason, this runs only once when the user accesses the page and not when clicking NuxtLinks
 
+  console.log("ROUTE MIDDLEWARE HAS RUN");
+
+  const runtimeConfig = useRuntimeConfig();
   const url = useRequestURL();
+  const auth = useAuth();
+
   const redirect_uri = url.origin;
 
   const { oidcAuthority: authority, oidcClientId: client_id } =
     runtimeConfig.public;
 
-  if (!oidcConfig) oidcConfig = await getOidcConfig(authority);
+  //  This would work
+  if (!auth.oidcConfig.value)
+    auth.oidcConfig.value = await getOidcConfig(authority);
 
-  const { authorization_endpoint, token_endpoint } = oidcConfig;
+  const { authorization_endpoint, token_endpoint } = auth.oidcConfig.value;
 
   const oidcCookie = useCookie("oidc");
   const hrefCookie = useCookie("href");
 
   if (oidcCookie.value) {
-    // TODO: figure out where to put the user
-    const { access_token } = oidcCookie.value as any;
+    const { access_token, refresh_token } = oidcCookie.value as any;
     const user = await getUser(oidcConfig, access_token);
-    if (user) return;
+
+    if (user) {
+      // TODO: Deal with refresh
+      // createTimeoutForTokenExpiry(oidcConfig, client_id, refresh_token);
+      // Reaching this point means the user can access the app
+
+      // TODO: This is just a test
+      const auth = useAuth();
+      auth.oidcAuthData.value = { user, access_token, refresh_token };
+      return;
+    }
   }
 
   const code = url.searchParams.get("code");
@@ -109,7 +62,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       client_id,
       redirect_uri,
     });
-    oidcCookie.value = data;
+
+    saveOidcData(data); // THis works
+
     const href = hrefCookie.value;
     hrefCookie.value = null;
     navigateTo(href, { external: true });
