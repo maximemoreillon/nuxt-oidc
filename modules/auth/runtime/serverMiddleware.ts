@@ -45,5 +45,7 @@ export default defineEventHandler(async (event) => {
 
   const verified = jwt.verify(token, key.getPublicKey());
 
+  // TODO: handle cases where verification failed
+
   (event.context as any).user = verified;
 });

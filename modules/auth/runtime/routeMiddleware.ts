@@ -1,5 +1,5 @@
 import { createPkcePair } from "./pkce";
-import { getOidcConfig } from "./oidc";
+import { getOidcConfig, getUser } from "./oidc";
 
 async function generateAuthUrl({
   authorization_endpoint,
@@ -94,9 +94,10 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   const hrefCookie = useCookie("href");
 
   if (oidcCookie.value) {
-    // TODO: get user
     // TODO: figure out where to put the user
-    return;
+    const { access_token } = oidcCookie.value as any;
+    const user = await getUser(oidcConfig, access_token);
+    if (user) return;
   }
 
   const code = url.searchParams.get("code");

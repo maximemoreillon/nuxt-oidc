@@ -9,3 +9,15 @@ export async function getOidcConfig(authority: string) {
     console.error(error);
   }
 }
+
+export async function getUser(oidcConfig: any, token: string) {
+  const { userinfo_endpoint } = oidcConfig;
+  const response = await fetch(userinfo_endpoint, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) return null;
+  return await response.json();
+}
