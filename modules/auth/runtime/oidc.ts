@@ -10,6 +10,7 @@ export async function getOidcConfig(authority: string) {
     return await response.json();
   } catch (error) {
     console.error(error);
+    return null;
   }
 }
 
@@ -87,8 +88,7 @@ export async function retrieveToken({
   return await response.json();
 }
 
-export async function getUser(oidcConfig: any, token: string) {
-  const { userinfo_endpoint } = oidcConfig;
+export async function getUser(userinfo_endpoint: string, token: string) {
   const response = await fetch(userinfo_endpoint, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -100,11 +100,10 @@ export async function getUser(oidcConfig: any, token: string) {
 }
 
 export async function refreshAccessToken(
-  oidcConfig: any,
+  token_endpoint: string,
   client_id: string,
   refresh_token: string
 ) {
-  const { token_endpoint } = oidcConfig;
   const body = new URLSearchParams({
     client_id,
     grant_type: "refresh_token",
@@ -120,40 +119,46 @@ export async function refreshAccessToken(
   };
 
   const response = await fetch(token_endpoint, options);
-  if (!response.ok) throw new Error("Error refreshing token");
+  if (!response.ok)
+    throw new Error(`Error refreshing token ${await response.text()}`);
 
   return await response.json();
 }
 
 export function createTimeoutForTokenExpiry(
-  oidcConfig: any,
+  token_endpoint: string,
   client_id: string,
   refresh_token: string
 ) {
   // This does not work yet
+  const auth = useAuth();
   const oidcCookie = useCookie("oidc");
 
   const { expires_at } = oidcCookie.value as any;
 
-  if (!expires_at) throw new Error("Missing expires_at field in OIDC cookie");
+  if (!expires_at) return;
 
   const expiryDate = new Date(expires_at);
   const timeLeft = 3000; //expiryDate.getTime() - Date.now();
 
+  console.log("Setting timeout");
   // Does not work
   setTimeout(async () => {
-    const data = await refreshAccessToken(oidcConfig, client_id, refresh_token);
-    saveOidcData(data);
+    const data = await refreshAccessToken(
+      token_endpoint,
+      client_id,
+      refresh_token
+    );
+    auth.saveToken(data);
     // TODO: set new Timeout
     console.log("refreshed");
   }, timeLeft);
 }
 
 export function saveOidcData(data: any) {
-  console.log("Saving data");
+  // TODO: replace this with composable
   useCookie("oidc").value = {
     ...data,
     expires_at: makeExpiryDate(data.expires_in),
   };
-  console.log("Cookie saved");
 }

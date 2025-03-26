@@ -23,32 +23,36 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   const url = useRequestURL();
   const auth = useAuth();
 
-  const redirect_uri = url.origin;
-
+  // Parsing runtime config
+  // TODO: consider storing in composable
   const { oidcAuthority: authority, oidcClientId: client_id } =
     runtimeConfig.public;
 
-  //  This would work
+  const redirect_uri = url.origin;
+
+  // TODO: Maybe this does not need to be a composable actually
   if (!auth.oidcConfig.value)
     auth.oidcConfig.value = await getOidcConfig(authority);
 
-  const { authorization_endpoint, token_endpoint } = auth.oidcConfig.value;
+  const { authorization_endpoint, token_endpoint, userinfo_endpoint } =
+    auth.oidcConfig.value;
 
+  // TODO: this should probably use the composable
   const oidcCookie = useCookie("oidc");
+
   const hrefCookie = useCookie("href");
 
   if (oidcCookie.value) {
     const { access_token, refresh_token } = oidcCookie.value as any;
-    const user = await getUser(oidcConfig, access_token);
+
+    const user = await getUser(userinfo_endpoint, access_token);
 
     if (user) {
       // TODO: Deal with refresh
-      // createTimeoutForTokenExpiry(oidcConfig, client_id, refresh_token);
-      // Reaching this point means the user can access the app
+      createTimeoutForTokenExpiry(token_endpoint, client_id, refresh_token);
 
-      // TODO: This is just a test
-      const auth = useAuth();
-      auth.oidcAuthData.value = { user, access_token, refresh_token };
+      auth.user.value = user;
+
       return;
     }
   }
@@ -63,7 +67,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       redirect_uri,
     });
 
-    saveOidcData(data); // THis works
+    auth.saveToken(data);
 
     const href = hrefCookie.value;
     hrefCookie.value = null;

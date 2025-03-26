@@ -1,8 +1,8 @@
 <template>
   <div>Home</div>
-  {{ authInfo.oidcAuthData }}
+  {{ auth.user }}
 </template>
 
 <script setup lang="ts">
-const authInfo = useAuth();
+const auth = useAuth();
 </script>
