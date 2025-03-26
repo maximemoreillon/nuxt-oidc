@@ -95,14 +95,13 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
   if (oidcCookie.value) {
     // TODO: get user
+    // TODO: figure out where to put the user
     return;
   }
 
   const code = url.searchParams.get("code");
 
   if (code) {
-    console.log("GOT CODE!");
-
     const data = await retrieveToken({
       token_endpoint,
       code,
