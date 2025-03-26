@@ -1,40 +1,5 @@
-// This middleware is only for pages
-// NOTE: this could have been a composable run on layout or something
-import CryptoJS from "crypto-js";
-
-function generateCodeVerifier(length: number) {
-  const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
-  return Array.from(array, (byte) => (byte % 36).toString(36)).join("");
-}
-
-function generatePkceChallenge(verifier: string) {
-  const hash = CryptoJS.SHA256(verifier);
-  const base64 = CryptoJS.enc.Base64.stringify(hash);
-  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function createPkcePair() {
-  const verifier = generateCodeVerifier(128);
-  const challenge = generatePkceChallenge(verifier);
-
-  return {
-    verifier,
-    challenge,
-  };
-}
-
-async function getOidcConfig(authority: string) {
-  const openIdConfigUrl = `${authority}/.well-known/openid-configuration`;
-  const response = await fetch(openIdConfigUrl);
-  // TODO: improve
-  if (!response.ok) return null;
-  try {
-    return await response.json();
-  } catch (error) {
-    console.error(error);
-  }
-}
+import { createPkcePair } from "./pkce";
+import { getOidcConfig } from "./oidc";
 
 async function generateAuthUrl({
   authorization_endpoint,
@@ -56,6 +21,7 @@ async function generateAuthUrl({
   authUrl.searchParams.append("code_challenge", challenge);
   authUrl.searchParams.append("redirect_uri", redirect_uri);
 
+  // TODO: address this
   // if (extraQueryParams !== undefined) {
   //   Object.keys(extraQueryParams).forEach((key) => {
   //     authUrl.searchParams.append(key, extraQueryParams[key]);
@@ -78,7 +44,8 @@ async function retrieveToken({
   token_endpoint: string;
   client_id: string;
 }) {
-  const code_verifier = useCookie("verifier").value;
+  const verifierCookie = useCookie("verifier");
+  const code_verifier = verifierCookie.value;
   if (!code_verifier) throw new Error("Missing verifier");
 
   const body = new URLSearchParams({
@@ -98,26 +65,33 @@ async function retrieveToken({
   };
 
   const response = await fetch(token_endpoint, options);
-  if (!response.ok) throw `Error getting token ${await response.text()}`;
 
-  useCookie("verifier").value = null;
+  verifierCookie.value = null;
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
 
   return await response.json();
 }
+
+let oidcConfig: any;
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const runtimeConfig = useRuntimeConfig();
 
   const url = useRequestURL();
-  const redirect_uri = url.href;
+  const redirect_uri = url.origin;
 
   const { oidcAuthority: authority, oidcClientId: client_id } =
     runtimeConfig.public;
 
-  const oidcConfig = await getOidcConfig(authority);
+  if (!oidcConfig) oidcConfig = await getOidcConfig(authority);
+
   const { authorization_endpoint, token_endpoint } = oidcConfig;
 
   const oidcCookie = useCookie("oidc");
+  const hrefCookie = useCookie("href");
 
   if (oidcCookie.value) {
     // TODO: get user
@@ -127,18 +101,22 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   const code = url.searchParams.get("code");
 
   if (code) {
+    console.log("GOT CODE!");
+
     const data = await retrieveToken({
       token_endpoint,
       code,
       client_id,
       redirect_uri,
     });
-    useCookie("oidc").value = data;
-    navigateTo(useCookie("href").value, { external: true });
+    oidcCookie.value = data;
+    const href = hrefCookie.value;
+    hrefCookie.value = null;
+    navigateTo(href, { external: true });
     return;
   }
 
-  useCookie("href").value = url.href;
+  hrefCookie.value = url.href;
   const authUrl = await generateAuthUrl({
     authorization_endpoint,
     client_id,

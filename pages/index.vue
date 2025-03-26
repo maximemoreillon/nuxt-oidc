@@ -1,6 +1,6 @@
 <template>
   <div>Home</div>
-  <div></div>
+  <div>{{ data }}</div>
 </template>
 
 <script setup lang="ts">

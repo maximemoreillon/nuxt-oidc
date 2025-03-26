@@ -1,22 +1,12 @@
 import createJwksClient from "jwks-rsa";
 import jwt from "jsonwebtoken";
-
-async function getOidcConfig(authority: string) {
-  const openIdConfigUrl = `${authority}/.well-known/openid-configuration`;
-  const response = await fetch(openIdConfigUrl);
-  // TODO: improve
-  if (!response.ok) return null;
-  try {
-    return await response.json();
-  } catch (error) {
-    console.error(error);
-  }
-}
+import { getOidcConfig } from "./oidc";
 
 // PROBLEM: cannot get jwksUri from runtimeConfig
 let jwksClient: createJwksClient.JwksClient;
 
 export default defineEventHandler(async (event) => {
+  // Only deal with API routes
   if (!event.node.req.url?.startsWith("/api")) {
     return;
   }

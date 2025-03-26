@@ -18,9 +18,13 @@ export default defineNuxtModule({
     console.log("Hi module!");
 
     addServerHandler({
-      handler: resolve("./server-routes-auth-middleware"),
+      handler: resolve("./runtime/serverMiddleware"),
     });
 
-    // addRouteMiddleware(routeMiddleware);
+    addRouteMiddleware({
+      name: "auth",
+      path: resolve("./runtime/routeMiddleware"),
+      global: true,
+    });
   },
 });
