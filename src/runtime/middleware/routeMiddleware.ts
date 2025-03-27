@@ -15,11 +15,14 @@ import {
 } from "#imports";
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  // for some reason, this runs only once when the user accesses the page and not when clicking NuxtLinks
+  // WARNING: runs on every page change, but only when used in prod
+
+  const auth = useAuth();
+
+  if (auth.user.value) return;
 
   const runtimeConfig = useRuntimeConfig();
   const url = useRequestURL();
-  const auth = useAuth();
 
   // Parsing runtime config and storing in composable
   const { oidcAuthority: authority, oidcClientId: client_id } =
