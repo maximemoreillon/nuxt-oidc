@@ -1,18 +1,18 @@
-import { useCookie, useState } from "#app";
 import { makeExpiryDate } from "../misc";
+import { useState, useCookie } from "#imports";
 
-export type Options = {
+type Options = {
   client_id: string;
   authority: string;
 };
 
-export type OidcConfig = {
+type OidcConfig = {
   token_endpoint: string;
   authorization_endpoint: string;
   userinfo_endpoint: string;
 };
 
-export type User = any;
+type User = any;
 
 export type TokenSet = {
   access_token: string;

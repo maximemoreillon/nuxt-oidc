@@ -1,11 +1,12 @@
 import {
-  createResolver,
   defineNuxtModule,
+  createResolver,
   addServerHandler,
   addRouteMiddleware,
   addImports,
   addImportsDir,
 } from "nuxt/kit";
+import { defu } from "defu";
 
 // Module options TypeScript interface definition
 export interface ModuleOptions {}
@@ -17,8 +18,13 @@ export default defineNuxtModule<ModuleOptions>({
   },
   // Default configuration options of the Nuxt module
   defaults: {},
-  setup(_options, _nuxt) {
+  setup(options, nuxt) {
     const { resolve } = createResolver(import.meta.url);
+
+    // Runtime Config
+    // nuxt.options.runtimeConfig.oidc = defu(nuxt.options.runtimeConfig.oidc, {
+    //   ...options,
+    // });
 
     addServerHandler({
       handler: resolve("./runtime/server/middleware"),
@@ -26,7 +32,7 @@ export default defineNuxtModule<ModuleOptions>({
 
     addRouteMiddleware({
       name: "auth",
-      path: resolve("./runtime/routeMiddleware"),
+      path: resolve("./runtime/middleware/routeMiddleware"),
       global: true,
     });
 

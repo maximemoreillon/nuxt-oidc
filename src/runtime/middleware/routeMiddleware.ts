@@ -1,19 +1,18 @@
-// Should this really be an auth middleware?
+import { type TokenSet, useAuth } from "../composables/auth";
+import { getOidcConfig } from "../common";
 import {
-  getOidcConfig,
-  getUser,
+  createTimeoutForTokenRefresh,
   generateAuthUrl,
   retrieveToken,
-  createTimeoutForTokenRefresh,
-} from "./oidc";
-import { useAuth } from "./composables/auth";
-// import {
-//   defineNuxtRouteMiddleware,
-//   navigateTo,
-//   useCookie,
-//   useRequestURL,
-//   useRuntimeConfig,
-// } from "#app";
+  getUser,
+} from "../oidc";
+import {
+  defineNuxtRouteMiddleware,
+  navigateTo,
+  useCookie,
+  useRequestURL,
+  useRuntimeConfig,
+} from "#imports";
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   // for some reason, this runs only once when the user accesses the page and not when clicking NuxtLinks

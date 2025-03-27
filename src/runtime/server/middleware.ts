@@ -1,12 +1,9 @@
 import createJwksClient from "jwks-rsa";
 import jwt from "jsonwebtoken";
-import { getOidcConfig } from "../oidc";
-import {
-  useRuntimeConfig,
-  defineEventHandler,
-  getHeader,
-  createError,
-} from "#imports";
+// import { getOidcConfig } from "../oidc";
+import { createError, defineEventHandler, getHeader } from "h3";
+import { useRuntimeConfig } from "#imports";
+import { getOidcConfig } from "../common";
 
 // PROBLEM: cannot get jwksUri from runtimeConfig
 let jwksClient: createJwksClient.JwksClient;
