@@ -1,17 +1,6 @@
 import { createPkcePair } from "./pkce";
-
-export async function getOidcConfig(authority: string) {
-  const openIdConfigUrl = `${authority}/.well-known/openid-configuration`;
-  const response = await fetch(openIdConfigUrl);
-  // TODO: improve
-  if (!response.ok) return null;
-  try {
-    return await response.json();
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
+import { useCookie } from "#imports";
+import type { TokenSet } from "./composables/auth";
 
 export async function generateAuthUrl({
   authorization_endpoint,

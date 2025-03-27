@@ -1,6 +1,9 @@
 import createJwksClient from "jwks-rsa";
 import jwt from "jsonwebtoken";
-import { getOidcConfig } from "./oidc";
+// import { getOidcConfig } from "../oidc";
+import { createError, defineEventHandler, getHeader } from "h3";
+import { useRuntimeConfig } from "#imports";
+import { getOidcConfig } from "../common";
 
 // PROBLEM: cannot get jwksUri from runtimeConfig
 let jwksClient: createJwksClient.JwksClient;
@@ -15,7 +18,8 @@ export default defineEventHandler(async (event) => {
     const runtimeConfig = useRuntimeConfig();
 
     const { oidcAuthority: authority } = runtimeConfig.public;
-    const { jwks_uri } = await getOidcConfig(authority);
+    if (!authority) throw new Error("Missing oidcAuthority in runtimeConfig");
+    const { jwks_uri } = await getOidcConfig(authority as string);
 
     jwksClient = createJwksClient({
       jwksUri: jwks_uri,

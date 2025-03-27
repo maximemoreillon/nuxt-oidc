@@ -1,12 +1,18 @@
-// Should this really be an auth middleware?
+import { type TokenSet, useAuth } from "../composables/auth";
+import { getOidcConfig } from "../common";
 import {
-  getOidcConfig,
-  getUser,
+  createTimeoutForTokenRefresh,
   generateAuthUrl,
   retrieveToken,
-  createTimeoutForTokenRefresh,
-} from "./oidc";
-import { useAuth } from "./composables/auth";
+  getUser,
+} from "../oidc";
+import {
+  defineNuxtRouteMiddleware,
+  navigateTo,
+  useCookie,
+  useRequestURL,
+  useRuntimeConfig,
+} from "#imports";
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   // for some reason, this runs only once when the user accesses the page and not when clicking NuxtLinks
@@ -18,14 +24,20 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // Parsing runtime config and storing in composable
   const { oidcAuthority: authority, oidcClientId: client_id } =
     runtimeConfig.public;
-  auth.options.value = { client_id, authority };
+
+  if (!authority || !client_id) {
+    console.error("Missing oidcAuthority or oidcClientId in runtimeConfig");
+    return;
+  }
+
+  auth.options.value = { client_id, authority } as any;
 
   const redirect_uri = url.origin;
 
   // TODO: Maybe this does not need to be a composable actually
   // But it's easier that way
   if (!auth.oidcConfig.value)
-    auth.oidcConfig.value = await getOidcConfig(authority);
+    auth.oidcConfig.value = await getOidcConfig(auth.options.value.authority);
 
   const { authorization_endpoint, token_endpoint, userinfo_endpoint } =
     auth.oidcConfig.value;
@@ -43,7 +55,11 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       auth.user.value = user;
 
       createTimeoutForTokenRefresh(
-        { token_endpoint, tokenSet: auth.tokenSet.value, client_id },
+        {
+          token_endpoint,
+          tokenSet: auth.tokenSet.value,
+          client_id: auth.options.value.client_id,
+        },
         auth.saveTokenSet
       );
 
@@ -57,7 +73,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     const data = await retrieveToken({
       token_endpoint,
       code,
-      client_id,
+      client_id: auth.options.value.client_id,
       redirect_uri,
     });
 
@@ -72,7 +88,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   hrefCookie.value = url.href;
   const authUrl = await generateAuthUrl({
     authorization_endpoint,
-    client_id,
+    client_id: auth.options.value.client_id,
     redirect_uri,
   });
 

@@ -1,23 +1,53 @@
 {
-  "name": "nuxt-app",
-  "private": true,
+  "name": "@moreillon/nuxt-oidc",
+  "version": "0.0.7",
+  "description": "Nuxt OIDC",
+  "repository": "maximemoreillon/nuxt-oidc",
+  "license": "MIT",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/module.mjs",
+      "require": "./dist/module.cjs"
+    }
+  },
+  "main": "./dist/module.cjs",
+  "types": "./dist/types.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev --host",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "prepackX": "nuxt-module-build build",
+    "dev": "nuxi dev playground --host",
+    "dev:build": "nuxi build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxi prepare playground",
+    "release": "npm run lint && npm run test && npm run prepack && changelogen --release && npm publish && git push --follow-tags",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:types": "vue-tsc --noEmit && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
+    "@nuxt/kit": "^3.16.1",
     "crypto-js": "^4.2.0",
+    "defu": "^6.1.4",
     "jsonwebtoken": "^9.0.2",
-    "jwks-rsa": "^3.2.0",
-    "nuxt": "^3.16.1",
-    "vue": "^3.5.13",
-    "vue-router": "^4.5.0"
+    "jwks-rsa": "^3.2.0"
   },
   "devDependencies": {
-    "@types/crypto-js": "^4.2.2"
+    "@nuxt/devtools": "^2.3.2",
+    "@nuxt/eslint-config": "^1.2.0",
+    "@nuxt/module-builder": "^0.8.4",
+    "@nuxt/schema": "^3.16.1",
+    "@nuxt/test-utils": "^3.17.2",
+    "@types/crypto-js": "^4.2.2",
+    "@types/node": "latest",
+    "changelogen": "^0.6.1",
+    "eslint": "^9.23.0",
+    "nuxt": "^3.16.1",
+    "typescript": "~5.8.2",
+    "vitest": "^3.0.9",
+    "vue-tsc": "^2.2.8"
   }
 }
