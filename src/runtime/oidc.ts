@@ -1,5 +1,5 @@
 import { createPkcePair } from "./pkce";
-import { useCookie } from "#imports";
+import { useCookie, type Ref } from "#imports";
 import type { TokenSet } from "./composables/auth";
 
 export async function generateAuthUrl({
@@ -117,27 +117,29 @@ export function createTimeoutForTokenRefresh(
   {
     token_endpoint,
     client_id,
-    tokenSet,
+    tokenSetRef,
   }: {
     token_endpoint: string;
     client_id: string;
-    tokenSet: TokenSet;
+    tokenSetRef: Ref;
   },
   cb: Function
 ) {
   // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
-  const { refresh_token, expires_at } = tokenSet;
 
+  const { expires_at } = tokenSetRef.value;
   if (!expires_at) return;
 
-  const expiryDate = new Date(expires_at);
-  const timeLeft = expiryDate.getTime() - Date.now();
+  // const expiryDate = new Date(tokenSetRef.value.expires_at);
+  // const timeLeft = expiryDate.getTime() - Date.now();
+  const timeLeft = 3000;
 
+  // Passing tokenSetRef because it is a ref and it will be updated in the callback
   setTimeout(async () => {
     const data = await refreshAccessToken(
       token_endpoint,
       client_id,
-      refresh_token
+      tokenSetRef.value.refresh_token
     );
 
     cb(data);
@@ -146,7 +148,7 @@ export function createTimeoutForTokenRefresh(
       {
         token_endpoint,
         client_id,
-        tokenSet,
+        tokenSetRef,
       },
       cb
     );

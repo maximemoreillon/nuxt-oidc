@@ -18,8 +18,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // WARNING: runs on every page change, but only when used in prod
 
   const auth = useAuth();
-
   if (auth.user.value) return;
+
+  console.log("User not found, running OIDC middleware");
 
   const runtimeConfig = useRuntimeConfig();
   const url = useRequestURL();
@@ -60,10 +61,12 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       createTimeoutForTokenRefresh(
         {
           token_endpoint,
-          tokenSet: auth.tokenSet.value,
+          tokenSetRef: auth.tokenSet,
           client_id: auth.options.value.client_id,
         },
-        auth.saveTokenSet
+        (newTokenSet: TokenSet) => {
+          auth.saveTokenSet(newTokenSet);
+        }
       );
 
       return;
