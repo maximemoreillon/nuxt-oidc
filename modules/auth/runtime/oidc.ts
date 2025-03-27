@@ -1,4 +1,3 @@
-import { makeExpiryDate } from "./misc";
 import { createPkcePair } from "./pkce";
 
 export async function getOidcConfig(authority: string) {
@@ -125,7 +124,7 @@ export async function refreshAccessToken(
   return await response.json();
 }
 
-export function createTimeoutForTokenExpiry(
+export function createTimeoutForTokenRefresh(
   {
     token_endpoint,
     client_id,
@@ -143,7 +142,7 @@ export function createTimeoutForTokenExpiry(
   if (!expires_at) return;
 
   const expiryDate = new Date(expires_at);
-  const timeLeft = 3000; //expiryDate.getTime() - Date.now();
+  const timeLeft = expiryDate.getTime() - Date.now();
 
   setTimeout(async () => {
     const data = await refreshAccessToken(
@@ -154,7 +153,7 @@ export function createTimeoutForTokenExpiry(
 
     cb(data);
 
-    createTimeoutForTokenExpiry(
+    createTimeoutForTokenRefresh(
       {
         token_endpoint,
         client_id,
@@ -163,12 +162,4 @@ export function createTimeoutForTokenExpiry(
       cb
     );
   }, timeLeft);
-}
-
-export function saveOidcData(data: any) {
-  // TODO: replace this with composable
-  useCookie("oidc").value = {
-    ...data,
-    expires_at: makeExpiryDate(data.expires_in),
-  };
 }

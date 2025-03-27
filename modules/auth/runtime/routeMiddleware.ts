@@ -1,38 +1,29 @@
 // Should this really be an auth middleware?
-import { makeExpiryDate } from "./misc";
 import {
   getOidcConfig,
   getUser,
-  refreshAccessToken,
   generateAuthUrl,
   retrieveToken,
-  createTimeoutForTokenExpiry,
-  saveOidcData,
+  createTimeoutForTokenRefresh,
 } from "./oidc";
 import { useAuth } from "./composables/auth";
 
-// TODO: replace with composable
-// let oidcConfig: any;
-
 export default defineNuxtRouteMiddleware(async (to, from) => {
   // for some reason, this runs only once when the user accesses the page and not when clicking NuxtLinks
-
-  console.log("ROUTE MIDDLEWARE HAS RUN");
 
   const runtimeConfig = useRuntimeConfig();
   const url = useRequestURL();
   const auth = useAuth();
 
-  // Parsing runtime config
-  // TODO: consider storing in composable
+  // Parsing runtime config and storing in composable
   const { oidcAuthority: authority, oidcClientId: client_id } =
     runtimeConfig.public;
-
   auth.options.value = { client_id, authority };
 
   const redirect_uri = url.origin;
 
   // TODO: Maybe this does not need to be a composable actually
+  // But it's easier that way
   if (!auth.oidcConfig.value)
     auth.oidcConfig.value = await getOidcConfig(authority);
 
@@ -49,13 +40,12 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     const user = await getUser(userinfo_endpoint, access_token);
 
     if (user) {
-      // TODO: Deal with refresh
-      createTimeoutForTokenExpiry(
+      auth.user.value = user;
+
+      createTimeoutForTokenRefresh(
         { token_endpoint, tokenSet: auth.tokenSet.value, client_id },
         auth.saveTokenSet
       );
-
-      auth.user.value = user;
 
       return;
     }

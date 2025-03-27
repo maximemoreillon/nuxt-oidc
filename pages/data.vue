@@ -4,8 +4,8 @@
 </template>
 
 <script setup lang="ts">
-const oidcCookie = useCookie("oidc");
-const { access_token } = oidcCookie.value as any;
+const auth = useAuth();
+const { access_token } = auth.tokenSet.value;
 const { data } = useFetch("/api/data", {
   headers: { Authorization: `Bearer ${access_token}` },
 });

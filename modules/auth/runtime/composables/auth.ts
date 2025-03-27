@@ -1,5 +1,4 @@
 import { makeExpiryDate } from "../misc";
-import { createTimeoutForTokenExpiry } from "../oidc";
 
 export type Options = {
   client_id: string;
@@ -28,12 +27,12 @@ export function useAuth() {
   // The stuff at .well-known/openid-configuration
   const oidcConfig = useState<OidcConfig>("config");
 
-  // TODO: this needs a new name
+  // Maybe cookie only is good enough, but this is nice for the user to get the token
   const tokenSet = useState<TokenSet>("tokenSet");
 
   const user = useState<User>("user");
 
-  // Unused for now
+  // Might not be needed
   const options = useState<Options>("options");
 
   function loadTokenSet() {
@@ -44,9 +43,7 @@ export function useAuth() {
 
   function saveTokenSet(tokenEndpointData: any) {
     const expires_at = makeExpiryDate(tokenEndpointData.expires_in);
-
     const tokenDataWithExpiresAt = { ...tokenEndpointData, expires_at };
-
     tokenSet.value = tokenDataWithExpiresAt;
     oidcCookie.value = tokenDataWithExpiresAt;
   }
