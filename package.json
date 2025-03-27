@@ -1,6 +1,6 @@
 {
   "name": "@moreillon/nuxt-oidc",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Nuxt OIDC",
   "repository": "maximemoreillon/nuxt-oidc",
   "license": "MIT",
@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@nuxt/kit": "^3.16.1",
+    "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0"
@@ -40,7 +41,6 @@
     "@nuxt/module-builder": "^0.8.4",
     "@nuxt/schema": "^3.16.1",
     "@nuxt/test-utils": "^3.17.2",
-    "@types/crypto-js": "^4.2.2",
     "@types/node": "latest",
     "changelogen": "^0.6.1",
     "eslint": "^9.23.0",
