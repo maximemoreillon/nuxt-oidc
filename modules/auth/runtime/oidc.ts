@@ -126,32 +126,42 @@ export async function refreshAccessToken(
 }
 
 export function createTimeoutForTokenExpiry(
-  token_endpoint: string,
-  client_id: string,
-  refresh_token: string
+  {
+    token_endpoint,
+    client_id,
+    tokenSet,
+  }: {
+    token_endpoint: string;
+    client_id: string;
+    tokenSet: TokenSet;
+  },
+  cb: Function
 ) {
-  // This does not work yet
-  const auth = useAuth();
-  const oidcCookie = useCookie("oidc");
-
-  const { expires_at } = oidcCookie.value as any;
+  // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
+  const { refresh_token, expires_at } = tokenSet;
 
   if (!expires_at) return;
 
   const expiryDate = new Date(expires_at);
   const timeLeft = 3000; //expiryDate.getTime() - Date.now();
 
-  console.log("Setting timeout");
-  // Does not work
   setTimeout(async () => {
     const data = await refreshAccessToken(
       token_endpoint,
       client_id,
       refresh_token
     );
-    auth.saveToken(data);
-    // TODO: set new Timeout
-    console.log("refreshed");
+
+    cb(data);
+
+    createTimeoutForTokenExpiry(
+      {
+        token_endpoint,
+        client_id,
+        tokenSet,
+      },
+      cb
+    );
   }, timeLeft);
 }
 

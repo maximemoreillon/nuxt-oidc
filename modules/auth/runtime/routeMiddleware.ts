@@ -28,6 +28,8 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   const { oidcAuthority: authority, oidcClientId: client_id } =
     runtimeConfig.public;
 
+  auth.options.value = { client_id, authority };
+
   const redirect_uri = url.origin;
 
   // TODO: Maybe this does not need to be a composable actually
@@ -37,19 +39,21 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   const { authorization_endpoint, token_endpoint, userinfo_endpoint } =
     auth.oidcConfig.value;
 
-  // TODO: this should probably use the composable
-  const oidcCookie = useCookie("oidc");
+  auth.loadTokenSet();
 
   const hrefCookie = useCookie("href");
 
-  if (oidcCookie.value) {
-    const { access_token, refresh_token } = oidcCookie.value as any;
+  if (auth.tokenSet.value) {
+    const { access_token } = auth.tokenSet.value;
 
     const user = await getUser(userinfo_endpoint, access_token);
 
     if (user) {
       // TODO: Deal with refresh
-      createTimeoutForTokenExpiry(token_endpoint, client_id, refresh_token);
+      createTimeoutForTokenExpiry(
+        { token_endpoint, tokenSet: auth.tokenSet.value, client_id },
+        auth.saveTokenSet
+      );
 
       auth.user.value = user;
 
@@ -67,7 +71,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       redirect_uri,
     });
 
-    auth.saveToken(data);
+    auth.saveTokenSet(data);
 
     const href = hrefCookie.value;
     hrefCookie.value = null;

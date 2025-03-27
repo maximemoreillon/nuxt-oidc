@@ -1,4 +1,5 @@
 import { makeExpiryDate } from "../misc";
+import { createTimeoutForTokenExpiry } from "../oidc";
 
 export type Options = {
   client_id: string;
@@ -13,6 +14,14 @@ export type OidcConfig = {
 
 export type User = any;
 
+export type TokenSet = {
+  access_token: string;
+  refresh_token: string;
+  id_token: string;
+  expires_in: string;
+  expires_at?: string;
+};
+
 export function useAuth() {
   const oidcCookie = useCookie("oidc");
 
@@ -20,28 +29,34 @@ export function useAuth() {
   const oidcConfig = useState<OidcConfig>("config");
 
   // TODO: this needs a new name
-  const token = useState("token");
+  const tokenSet = useState<TokenSet>("tokenSet");
 
   const user = useState<User>("user");
 
   // Unused for now
   const options = useState<Options>("options");
 
-  function saveToken(tokenEndpointData: any) {
+  function loadTokenSet() {
+    const tokenData = oidcCookie.value as TokenSet | undefined | null;
+    if (!tokenData) return;
+    tokenSet.value = tokenData;
+  }
+
+  function saveTokenSet(tokenEndpointData: any) {
     const expires_at = makeExpiryDate(tokenEndpointData.expires_in);
 
     const tokenDataWithExpiresAt = { ...tokenEndpointData, expires_at };
 
-    token.value = tokenDataWithExpiresAt;
-    // Can this use cookies?
+    tokenSet.value = tokenDataWithExpiresAt;
     oidcCookie.value = tokenDataWithExpiresAt;
   }
 
   return {
-    token,
+    tokenSet,
     oidcConfig,
     user,
     options,
-    saveToken,
+    loadTokenSet,
+    saveTokenSet,
   };
 }
