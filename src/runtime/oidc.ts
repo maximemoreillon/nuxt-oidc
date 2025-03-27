@@ -130,9 +130,9 @@ export function createTimeoutForTokenRefresh(
   const { expires_at } = tokenSetRef.value;
   if (!expires_at) return;
 
-  // const expiryDate = new Date(tokenSetRef.value.expires_at);
-  // const timeLeft = expiryDate.getTime() - Date.now();
-  const timeLeft = 3000;
+  const expiryDate = new Date(tokenSetRef.value.expires_at);
+  const timeLeft = expiryDate.getTime() - Date.now();
+  // const timeLeft = 3000;
 
   // Passing tokenSetRef because it is a ref and it will be updated in the callback
   setTimeout(async () => {

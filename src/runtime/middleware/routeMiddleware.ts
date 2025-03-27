@@ -15,7 +15,8 @@ import {
 } from "#imports";
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  // WARNING: runs on every page change, but only when used in prod
+  // PROBLEM: this should run on the front-end only
+  // WARNING: runs on every page change
 
   const auth = useAuth();
   if (auth.user.value) return;
