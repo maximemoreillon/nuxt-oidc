@@ -15,13 +15,8 @@ import {
 } from "#imports";
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  // PROBLEM: this should run on the front-end only
-  // WARNING: runs on every page change
-
   const auth = useAuth();
   if (auth.user.value) return;
-
-  console.log("User not found, running OIDC middleware");
 
   const runtimeConfig = useRuntimeConfig();
   const url = useRequestURL();
@@ -65,9 +60,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
           tokenSetRef: auth.tokenSet,
           client_id: auth.options.value.client_id,
         },
-        (newTokenSet: TokenSet) => {
-          auth.saveTokenSet(newTokenSet);
-        }
+        auth.saveTokenSet
       );
 
       return;

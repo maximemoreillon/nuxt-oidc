@@ -1,6 +1,5 @@
 import { createPkcePair } from "./pkce";
 import { useCookie, type Ref } from "#imports";
-import type { TokenSet } from "./composables/auth";
 
 export async function generateAuthUrl({
   authorization_endpoint,
@@ -70,7 +69,9 @@ export async function retrieveToken({
   verifierCookie.value = null;
 
   if (!response.ok) {
-    throw new Error(await response.text());
+    const text = await response.text();
+    console.error(text);
+    throw new Error(text);
   }
 
   return await response.json();
