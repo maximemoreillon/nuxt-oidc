@@ -1,6 +1,6 @@
 {
   "name": "@moreillon/nuxt-oidc",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Nuxt OIDC",
   "repository": "maximemoreillon/nuxt-oidc",
   "license": "MIT",
@@ -30,8 +30,6 @@
   },
   "dependencies": {
     "@nuxt/kit": "^3.16.1",
-    "@types/crypto-js": "^4.2.2",
-    "crypto-js": "^4.2.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0"
   },
