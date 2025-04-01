@@ -1,5 +1,6 @@
 import { makeExpiryDate } from "../misc";
-import { useState, useCookie } from "#imports";
+import { useState, useCookie, navigateTo } from "#imports";
+import { generateLogoutUrl } from "../oidc";
 
 type Options = {
   client_id: string;
@@ -10,6 +11,7 @@ type OidcConfig = {
   token_endpoint: string;
   authorization_endpoint: string;
   userinfo_endpoint: string;
+  end_session_endpoint: string;
 };
 
 type User = any;
@@ -49,6 +51,13 @@ export function useAuth() {
     oidcCookie.value = tokenDataWithExpiresAt;
   }
 
+  function logout() {
+    const { end_session_endpoint } = oidcConfig.value;
+    const { id_token } = tokenSet.value;
+    const logoutUrl = generateLogoutUrl({ end_session_endpoint, id_token });
+    navigateTo(logoutUrl, { external: true });
+  }
+
   return {
     tokenSet,
     oidcConfig,
@@ -56,5 +65,6 @@ export function useAuth() {
     options,
     loadTokenSet,
     saveTokenSet,
+    logout,
   };
 }

@@ -1,6 +1,6 @@
 import { createPkcePair } from "./pkce";
 import { useCookie, type Ref } from "#imports";
-
+import { useAuth } from "./composables/auth";
 export async function generateAuthUrl({
   authorization_endpoint,
   client_id,
@@ -154,4 +154,18 @@ export function createTimeoutForTokenRefresh(
       cb
     );
   }, timeLeft);
+}
+
+export function generateLogoutUrl({
+  end_session_endpoint,
+  id_token,
+}: {
+  end_session_endpoint: string;
+  id_token: string;
+}) {
+  const logoutUrl = new URL(end_session_endpoint);
+
+  logoutUrl.searchParams.append("id_token_hint", id_token);
+
+  return logoutUrl.toString();
 }
