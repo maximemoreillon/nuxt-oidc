@@ -54,16 +54,7 @@ export function useAuth() {
   function saveUser(user: User) {
     user.value = user;
 
-    if (import.meta.server) return;
-
-    createTimeoutForTokenRefresh(
-      {
-        token_endpoint: oidcConfig.value.token_endpoint,
-        tokenSetRef: tokenSet,
-        client_id: options.value.client_id,
-      },
-      saveTokenSet
-    );
+    // TODO: createTimeout here?
   }
 
   function createTimeoutForTokenRefresh(
@@ -78,6 +69,8 @@ export function useAuth() {
     },
     cb: Function
   ) {
+    if (import.meta.server) return;
+
     // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
 
     const { expires_at } = tokenSetRef.value;
@@ -129,5 +122,6 @@ export function useAuth() {
     saveTokenSet,
     logout,
     saveUser,
+    createTimeoutForTokenRefresh,
   };
 }

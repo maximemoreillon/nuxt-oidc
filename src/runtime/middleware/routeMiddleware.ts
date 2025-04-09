@@ -1,11 +1,6 @@
-import { type TokenSet, useAuth } from "../composables/auth";
+import { useAuth } from "../composables/auth";
 import { getOidcConfig } from "../common";
-import {
-  createTimeoutForTokenRefresh,
-  generateAuthUrl,
-  retrieveToken,
-  getUser,
-} from "../oidc";
+import { generateAuthUrl, retrieveToken, getUser } from "../oidc";
 import {
   defineNuxtRouteMiddleware,
   navigateTo,
@@ -55,14 +50,14 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       auth.saveUser(user);
       // auth.user.value = user;
 
-      // createTimeoutForTokenRefresh(
-      //   {
-      //     token_endpoint,
-      //     tokenSetRef: auth.tokenSet,
-      //     client_id: auth.options.value.client_id,
-      //   },
-      //   auth.saveTokenSet
-      // );
+      auth.createTimeoutForTokenRefresh(
+        {
+          token_endpoint,
+          tokenSetRef: auth.tokenSet,
+          client_id: auth.options.value.client_id,
+        },
+        auth.saveTokenSet
+      );
 
       return;
     }

@@ -114,53 +114,6 @@ export async function refreshAccessToken(
   return await response.json();
 }
 
-export function createTimeoutForTokenRefresh(
-  {
-    token_endpoint,
-    client_id,
-    tokenSetRef,
-  }: {
-    token_endpoint: string;
-    client_id: string;
-    tokenSetRef: Ref;
-  },
-  cb: Function
-) {
-  // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
-
-  const { expires_at } = tokenSetRef.value;
-  if (!expires_at) {
-    console.error("No expires_at in tokenSet");
-    return;
-  }
-
-  const expiryDate = new Date(tokenSetRef.value.expires_at);
-  const timeLeft = expiryDate.getTime() - Date.now();
-  // const timeLeft = 3000;
-
-  // Passing tokenSetRef because it is a ref and it will be updated in the callback
-  setTimeout(async () => {
-    const data = await refreshAccessToken(
-      token_endpoint,
-      client_id,
-      tokenSetRef.value.refresh_token
-    );
-
-    console.log("Access token refreshed");
-
-    cb(data);
-
-    createTimeoutForTokenRefresh(
-      {
-        token_endpoint,
-        client_id,
-        tokenSetRef,
-      },
-      cb
-    );
-  }, timeLeft);
-}
-
 export function generateLogoutUrl({
   end_session_endpoint,
   id_token,
