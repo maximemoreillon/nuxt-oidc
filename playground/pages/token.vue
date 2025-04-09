@@ -1,6 +1,6 @@
 <template>
-  <div>User</div>
-  {{ auth.user }}
+  <div>Token</div>
+  {{ auth.tokenSet }}
 </template>
 
 <script setup lang="ts">

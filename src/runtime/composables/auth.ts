@@ -1,6 +1,6 @@
 import { makeExpiryDate } from "../misc";
-import { useState, useCookie, navigateTo } from "#imports";
-import { generateLogoutUrl } from "../oidc";
+import { useState, useCookie, navigateTo, type Ref } from "#imports";
+import { generateLogoutUrl, refreshAccessToken } from "../oidc";
 
 type Options = {
   client_id: string;
@@ -51,6 +51,68 @@ export function useAuth() {
     oidcCookie.value = tokenDataWithExpiresAt;
   }
 
+  function saveUser(user: User) {
+    user.value = user;
+
+    if (import.meta.server) return;
+
+    createTimeoutForTokenRefresh(
+      {
+        token_endpoint: oidcConfig.value.token_endpoint,
+        tokenSetRef: tokenSet,
+        client_id: options.value.client_id,
+      },
+      saveTokenSet
+    );
+  }
+
+  function createTimeoutForTokenRefresh(
+    {
+      token_endpoint,
+      client_id,
+      tokenSetRef,
+    }: {
+      token_endpoint: string;
+      client_id: string;
+      tokenSetRef: Ref;
+    },
+    cb: Function
+  ) {
+    // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
+
+    const { expires_at } = tokenSetRef.value;
+    if (!expires_at) {
+      console.error("No expires_at in tokenSet");
+      return;
+    }
+
+    const expiryDate = new Date(tokenSetRef.value.expires_at);
+    const timeLeft = expiryDate.getTime() - Date.now();
+    // const timeLeft = 5000;
+
+    // Passing tokenSetRef because it is a ref and it will be updated in the callback
+    setTimeout(async () => {
+      const data = await refreshAccessToken(
+        token_endpoint,
+        client_id,
+        tokenSetRef.value.refresh_token
+      );
+
+      console.log("Access token refreshed");
+
+      cb(data);
+
+      createTimeoutForTokenRefresh(
+        {
+          token_endpoint,
+          client_id,
+          tokenSetRef,
+        },
+        cb
+      );
+    }, timeLeft);
+  }
+
   function logout() {
     const { end_session_endpoint } = oidcConfig.value;
     const { id_token } = tokenSet.value;
@@ -66,5 +128,6 @@ export function useAuth() {
     loadTokenSet,
     saveTokenSet,
     logout,
+    saveUser,
   };
 }

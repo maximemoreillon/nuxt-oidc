@@ -52,16 +52,17 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     const user = await getUser(userinfo_endpoint, access_token);
 
     if (user) {
-      auth.user.value = user;
+      auth.saveUser(user);
+      // auth.user.value = user;
 
-      createTimeoutForTokenRefresh(
-        {
-          token_endpoint,
-          tokenSetRef: auth.tokenSet,
-          client_id: auth.options.value.client_id,
-        },
-        auth.saveTokenSet
-      );
+      // createTimeoutForTokenRefresh(
+      //   {
+      //     token_endpoint,
+      //     tokenSetRef: auth.tokenSet,
+      //     client_id: auth.options.value.client_id,
+      //   },
+      //   auth.saveTokenSet
+      // );
 
       return;
     }
