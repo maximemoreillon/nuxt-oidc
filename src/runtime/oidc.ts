@@ -129,7 +129,10 @@ export function createTimeoutForTokenRefresh(
   // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
 
   const { expires_at } = tokenSetRef.value;
-  if (!expires_at) return;
+  if (!expires_at) {
+    console.error("No expires_at in tokenSet");
+    return;
+  }
 
   const expiryDate = new Date(tokenSetRef.value.expires_at);
   const timeLeft = expiryDate.getTime() - Date.now();
@@ -142,6 +145,8 @@ export function createTimeoutForTokenRefresh(
       client_id,
       tokenSetRef.value.refresh_token
     );
+
+    console.log("Access token refreshed");
 
     cb(data);
 
