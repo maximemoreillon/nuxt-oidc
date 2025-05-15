@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.1.27
+
+[compare changes](https://github.com/maximemoreillon/nuxt-oidc/compare/v0.1.26...v0.1.27)
+
 ## v0.1.25
 
 [compare changes](https://github.com/maximemoreillon/nuxt-oidc/compare/v0.1.24...v0.1.25)
