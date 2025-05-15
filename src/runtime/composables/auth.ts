@@ -51,8 +51,8 @@ export function useAuth() {
     oidcCookie.value = tokenDataWithExpiresAt;
   }
 
-  function saveUser(user: User) {
-    user.value = user;
+  function saveUser(u: User) {
+    user.value = u;
 
     // TODO: createTimeout here?
   }
