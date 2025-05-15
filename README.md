@@ -29,3 +29,11 @@ export default defineNuxtConfig({
   },
 });
 ```
+
+## Dev
+
+### Publishing
+
+```
+npm run release
+```
