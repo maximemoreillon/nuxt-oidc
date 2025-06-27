@@ -19,10 +19,12 @@ export default defineNuxtModule<ModuleOptions>({
   setup(options, nuxt) {
     const resolver = createResolver(import.meta.url);
 
+    // Server middleware protects API routes
     addServerHandler({
       handler: resolver.resolve("./runtime/server/middleware"),
     });
 
+    // Route middleware used to protect every page and handle redirects from OIDC provider
     addRouteMiddleware({
       name: "auth",
       path: resolver.resolve("./runtime/middleware/routeMiddleware"),

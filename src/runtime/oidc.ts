@@ -1,6 +1,6 @@
 import { createPkcePair } from "./pkce";
-import { useCookie, type Ref } from "#imports";
-import { useAuth } from "./composables/auth";
+import { useCookie } from "#imports";
+
 export async function generateAuthUrl({
   authorization_endpoint,
   client_id,

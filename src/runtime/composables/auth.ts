@@ -69,9 +69,11 @@ export function useAuth() {
     },
     cb: Function
   ) {
+    // Prevent execution on server
     if (import.meta.server) return;
 
     // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
+    // Hence passing token_endpoint, client_id and tokenSetRef as arguments
 
     const { expires_at } = tokenSetRef.value;
     if (!expires_at) {
@@ -90,8 +92,6 @@ export function useAuth() {
         client_id,
         tokenSetRef.value.refresh_token
       );
-
-      console.log("Access token refreshed");
 
       cb(data);
 

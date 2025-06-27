@@ -5,15 +5,15 @@ import { createError, defineEventHandler, getHeader } from "h3";
 import { useRuntimeConfig } from "#imports";
 import { getOidcConfig } from "../common";
 
-// PROBLEM: cannot get jwksUri from runtimeConfig
+// Create a single, reusable JWKS client
+// TODO: there must be nicer ways to do this
 let jwksClient: createJwksClient.JwksClient;
 
 export default defineEventHandler(async (event) => {
   // Only deal with API routes
-  if (!event.node.req.url?.startsWith("/api")) {
-    return;
-  }
+  if (!event.node.req.url?.startsWith("/api")) return;
 
+  // Create client if it does not exist yet
   if (!jwksClient) {
     const runtimeConfig = useRuntimeConfig();
 
@@ -40,10 +40,18 @@ export default defineEventHandler(async (event) => {
   const token = authorizationHeader.split(" ")[1];
 
   const decoded = jwt.decode(token, { complete: true });
-  if (!decoded) throw new Error(`Decoded token is null`);
+  if (!decoded)
+    throw createError({
+      statusCode: 401,
+      statusMessage: "Decoded token is null",
+    });
 
   const kid = decoded?.header?.kid;
-  if (!kid) throw new Error("Missing token kid");
+  if (!kid)
+    throw createError({
+      statusCode: 401,
+      statusMessage: "kid missing in token",
+    });
 
   const key = await jwksClient.getSigningKey(kid);
 
