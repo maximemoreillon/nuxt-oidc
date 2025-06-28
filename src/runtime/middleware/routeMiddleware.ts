@@ -1,5 +1,5 @@
 import { useAuth } from "../composables/auth";
-import { getOidcConfig } from "../common";
+import getOidcConfig from "../shared/getOidcConfig";
 import { generateAuthUrl, retrieveToken, getUser } from "../oidc";
 import { z } from "zod";
 import {

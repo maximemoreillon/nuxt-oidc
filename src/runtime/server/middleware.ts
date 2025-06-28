@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 // import { getOidcConfig } from "../oidc";
 import { createError, defineEventHandler, getHeader } from "h3";
 import { useRuntimeConfig } from "#imports";
-import { getOidcConfig } from "../common";
+import getOidcConfig from "../shared/getOidcConfig";
 
 // Create a single, reusable JWKS client
 // TODO: there must be nicer ways to do this

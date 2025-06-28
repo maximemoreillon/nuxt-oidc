@@ -1,9 +1,11 @@
-// TODO: this could be in "shared" folder
-export async function getOidcConfig(authority: string) {
+export default async function (authority: string) {
   const openIdConfigUrl = `${authority}/.well-known/openid-configuration`;
   const response = await fetch(openIdConfigUrl);
   // TODO: improve
-  if (!response.ok) return null;
+  if (!response.ok) {
+    console.error(`Failed to fetch OIDC config`);
+    return null;
+  }
   try {
     return await response.json();
   } catch (error) {
