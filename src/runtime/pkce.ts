@@ -1,4 +1,4 @@
-// Thanks CHatGPT
+// Thanks ChatGPT
 
 function base64UrlEncode(input: Uint8Array): string {
   let binary = "";

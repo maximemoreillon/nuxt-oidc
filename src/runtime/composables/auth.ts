@@ -35,10 +35,10 @@ export function useAuth() {
 
   const user = useState<User>("user");
 
-  // Might not be needed
+  // TODO: check if used and/or needed
   const options = useState<Options>("options");
 
-  function loadTokenSet() {
+  function loadTokenSetFromCookies() {
     const tokenData = oidcCookie.value as TokenSet | undefined | null;
     if (!tokenData) return;
     tokenSet.value = tokenData;
@@ -49,12 +49,6 @@ export function useAuth() {
     const tokenDataWithExpiresAt = { ...tokenEndpointData, expires_at };
     tokenSet.value = tokenDataWithExpiresAt;
     oidcCookie.value = tokenDataWithExpiresAt;
-  }
-
-  function saveUser(u: User) {
-    user.value = u;
-
-    // TODO: createTimeout here?
   }
 
   function createTimeoutForTokenRefresh(
@@ -118,10 +112,9 @@ export function useAuth() {
     oidcConfig,
     user,
     options,
-    loadTokenSet,
+    loadTokenSetFromCookies,
     saveTokenSet,
     logout,
-    saveUser,
     createTimeoutForTokenRefresh,
   };
 }

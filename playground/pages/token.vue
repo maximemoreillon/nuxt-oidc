@@ -1,5 +1,5 @@
 <template>
-  <div>Token</div>
+  <h2>Token</h2>
   {{ auth.tokenSet }}
 </template>
 

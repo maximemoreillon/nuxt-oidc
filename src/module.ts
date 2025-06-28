@@ -17,17 +17,17 @@ export default defineNuxtModule<ModuleOptions>({
   // Default configuration options of the Nuxt module
   defaults: {},
   setup(options, nuxt) {
-    const resolver = createResolver(import.meta.url);
+    const { resolve } = createResolver(import.meta.url);
 
     // Server middleware protects API routes
     addServerHandler({
-      handler: resolver.resolve("./runtime/server/middleware"),
+      handler: resolve("./runtime/server/middleware"),
     });
 
     // Route middleware used to protect every page and handle redirects from OIDC provider
     addRouteMiddleware({
       name: "auth",
-      path: resolver.resolve("./runtime/middleware/routeMiddleware"),
+      path: resolve("./runtime/middleware/routeMiddleware"),
       global: true,
     });
 
@@ -37,6 +37,6 @@ export default defineNuxtModule<ModuleOptions>({
     //   from: resolve("runtime/composables/useAuth"),
     // });
 
-    addImportsDir(resolver.resolve("runtime/composables"));
+    addImportsDir(resolve("runtime/composables"));
   },
 });

@@ -1,15 +1,16 @@
 import { createPkcePair } from "./pkce";
 import { useCookie } from "#imports";
 
-export async function generateAuthUrl({
-  authorization_endpoint,
-  client_id,
-  redirect_uri,
-}: {
+type GenerateAuthUrlArg = {
   authorization_endpoint: string;
   client_id: string;
   redirect_uri: string;
-}) {
+  extraQueryParams?: { [k: string]: string };
+};
+
+export async function generateAuthUrl(args: GenerateAuthUrlArg) {
+  const { authorization_endpoint, client_id, redirect_uri, extraQueryParams } =
+    args;
   const { verifier, challenge } = createPkcePair();
 
   const authUrl = new URL(authorization_endpoint);
@@ -21,29 +22,26 @@ export async function generateAuthUrl({
   authUrl.searchParams.append("code_challenge", challenge);
   authUrl.searchParams.append("redirect_uri", redirect_uri);
 
-  // TODO: address this
-  // if (extraQueryParams !== undefined) {
-  //   Object.keys(extraQueryParams).forEach((key) => {
-  //     authUrl.searchParams.append(key, extraQueryParams[key]);
-  //   });
-  // }
+  if (extraQueryParams) {
+    Object.keys(extraQueryParams).forEach((key) => {
+      authUrl.searchParams.append(key, extraQueryParams[key]);
+    });
+  }
 
   useCookie("verifier").value = verifier;
 
   return authUrl.toString();
 }
 
-export async function retrieveToken({
-  code,
-  redirect_uri,
-  token_endpoint,
-  client_id,
-}: {
+type RetrieveTokenArg = {
   code: string;
   redirect_uri: string;
   token_endpoint: string;
   client_id: string;
-}) {
+};
+
+export async function retrieveToken(args: RetrieveTokenArg) {
+  const { code, redirect_uri, token_endpoint, client_id } = args;
   const verifierCookie = useCookie("verifier");
   const code_verifier = verifierCookie.value;
   if (!code_verifier) throw new Error("Missing verifier");
@@ -77,8 +75,8 @@ export async function retrieveToken({
   return await response.json();
 }
 
-export async function getUser(userinfo_endpoint: string, token: string) {
-  const response = await fetch(userinfo_endpoint, {
+export async function getUser(userInfoEndpoint: string, token: string) {
+  const response = await fetch(userInfoEndpoint, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -114,13 +112,11 @@ export async function refreshAccessToken(
   return await response.json();
 }
 
-export function generateLogoutUrl({
-  end_session_endpoint,
-  id_token,
-}: {
+export function generateLogoutUrl(args: {
   end_session_endpoint: string;
   id_token: string;
 }) {
+  const { end_session_endpoint, id_token } = args;
   const logoutUrl = new URL(end_session_endpoint);
 
   logoutUrl.searchParams.append("id_token_hint", id_token);

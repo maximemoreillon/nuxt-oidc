@@ -7,6 +7,7 @@ export default defineNuxtConfig({
     public: {
       oidcAuthority: "",
       oidcClientId: "",
+      oidcAudience: "",
     },
   },
 });

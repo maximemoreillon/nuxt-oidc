@@ -1,5 +1,5 @@
 <template>
-  <div>User</div>
+  <h2>User</h2>
   {{ auth.user }}
 </template>
 
