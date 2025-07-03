@@ -8,4 +8,5 @@ publish:
     - tags
   script:
     - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+    - npm i
     - npm run ci-release
