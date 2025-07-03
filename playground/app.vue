@@ -6,6 +6,7 @@
   <nav>
     <NuxtLink to="/">Home</NuxtLink>
     <NuxtLink to="/data">Data</NuxtLink>
+    <NuxtLink to="/data">Data</NuxtLink>
     <NuxtLink to="/user">User</NuxtLink>
     <NuxtLink to="/token">Token</NuxtLink>
   </nav>

@@ -17,15 +17,16 @@ const publicRuntimeConfigSchema = z.object({
 });
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
+  // TODO: does this run on the server or client?
+
   const auth = useAuth();
   if (auth.user.value) return;
 
   // TODO: consider having this whole code as a function in the composable
 
-  const runtimeConfig = useRuntimeConfig();
-  const url = useRequestURL();
-
   // Parsing runtime config and storing in composable
+  // TODO: why though?
+  const runtimeConfig = useRuntimeConfig();
   const {
     oidcAuthority: authority,
     oidcClientId: client_id,
@@ -34,6 +35,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
   auth.options.value = { client_id, authority };
 
+  const url = useRequestURL();
   const redirect_uri = url.origin;
 
   // TODO: Maybe this does not need to be a composable actually
@@ -75,6 +77,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
   // If no user info available, maybe the user just got redirected after logging in with the OIDC provider
   // In such case, URL should contain a code to verify
+  // TODO: consider handling this only on a /callback route
   // TODO: consider having this logic in a dedicated page instead of here
   const code = url.searchParams.get("code");
 

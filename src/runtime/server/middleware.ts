@@ -10,6 +10,9 @@ import getOidcConfig from "../shared/getOidcConfig";
 let jwksClient: createJwksClient.JwksClient;
 
 export default defineEventHandler(async (event) => {
+  // NOTE: this server middleware works independently from the front-end logic such as route middleware
+  // The only shared logic is getOidcConfig
+
   // Only deal with API routes
   if (!event.node.req.url?.startsWith("/api")) return;
 
@@ -28,16 +31,18 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const authorizationHeader = getHeader(event, "Authorization");
+  let token: string | undefined;
 
-  if (!authorizationHeader) {
+  const oidcCookie = getCookie(event, "oidc");
+
+  if (oidcCookie) token = JSON.parse(oidcCookie).access_token;
+  else token = getHeader(event, "Authorization")?.split(" ")[1];
+
+  if (!token)
     throw createError({
       statusCode: 401,
-      statusMessage: "Authorization header not set",
+      statusMessage: "Token not found in either cookie or authorization header",
     });
-  }
-
-  const token = authorizationHeader.split(" ")[1];
 
   const decoded = jwt.decode(token, { complete: true });
   if (!decoded)
