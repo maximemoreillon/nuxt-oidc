@@ -1,0 +1,11 @@
+stages:
+  - publish
+
+publish:
+  image: node:20
+  stage: publish
+  only:
+    - tags
+  script:
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+    - npm run ci-release
