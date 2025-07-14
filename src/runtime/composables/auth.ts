@@ -1,11 +1,6 @@
 import { makeExpiryDate } from "../misc";
-import { useState, useCookie, navigateTo, type Ref } from "#imports";
-import { generateLogoutUrl, refreshAccessToken } from "../oidc";
-
-type Options = {
-  client_id: string;
-  authority: string;
-};
+import { useState, useCookie, navigateTo } from "#imports";
+import { generateLogoutUrl } from "../oidc";
 
 type OidcConfig = {
   token_endpoint: string;
@@ -16,91 +11,47 @@ type OidcConfig = {
 
 type User = any;
 
+// TODO: consider renaming Tokens
 export type TokenSet = {
   access_token: string;
   refresh_token: string;
   id_token: string;
   expires_in: string;
-  expires_at?: string;
+  expires_at?: string | Date;
 };
 
 export function useAuth() {
-  const oidcCookie = useCookie("oidc");
+  const oidcCookie = useCookie<TokenSet>("oidc");
+
+  // NOTE: useState statements cannot be used outside useAuth()
 
   // The stuff at .well-known/openid-configuration
   const oidcConfig = useState<OidcConfig>("config");
 
-  // Maybe cookie only is good enough, but this is nice for the user to get the token
+  // TODO: consider renaming to "tokens"
   const tokenSet = useState<TokenSet>("tokenSet");
 
   const user = useState<User>("user");
 
-  // TODO: check if used and/or needed
-  const options = useState<Options>("options");
+  const refreshTimeoutExists = useState<boolean>(
+    "refreshTimeoutExists",
+    () => false
+  );
 
-  function loadTokenSetFromCookies() {
-    const tokenData = oidcCookie.value as TokenSet | undefined | null;
-    if (!tokenData) return;
-    tokenSet.value = tokenData;
-  }
-
-  function saveTokenSet(tokenEndpointData: any) {
+  function saveTokenSet(tokenEndpointData: TokenSet) {
     const expires_at = makeExpiryDate(tokenEndpointData.expires_in);
     const tokenDataWithExpiresAt = { ...tokenEndpointData, expires_at };
     tokenSet.value = tokenDataWithExpiresAt;
     oidcCookie.value = tokenDataWithExpiresAt;
   }
 
-  function createTimeoutForTokenRefresh(
-    {
-      token_endpoint,
-      client_id,
-      tokenSetRef,
-    }: {
-      token_endpoint: string;
-      client_id: string;
-      tokenSetRef: Ref;
-    },
-    cb: Function
-  ) {
-    // Prevent execution on server
-    if (import.meta.server) return;
-
-    // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
-    // Hence passing token_endpoint, client_id and tokenSetRef as arguments
-
-    const { expires_at } = tokenSetRef.value;
-    if (!expires_at) {
-      console.error("No expires_at in tokenSet");
-      return;
-    }
-
-    const expiryDate = new Date(tokenSetRef.value.expires_at);
-    const timeLeft = expiryDate.getTime() - Date.now();
-    // const timeLeft = 5000;
-
-    // Passing tokenSetRef because it is a ref and it will be updated in the callback
-    setTimeout(async () => {
-      const data = await refreshAccessToken(
-        token_endpoint,
-        client_id,
-        tokenSetRef.value.refresh_token
-      );
-
-      cb(data);
-
-      createTimeoutForTokenRefresh(
-        {
-          token_endpoint,
-          client_id,
-          tokenSetRef,
-        },
-        cb
-      );
-    }, timeLeft);
+  function loadTokenSet() {
+    if (!oidcCookie?.value) return;
+    tokenSet.value = oidcCookie.value;
   }
 
   function logout() {
+    if (!tokenSet.value || !user.value) return;
     const { end_session_endpoint } = oidcConfig.value;
     const { id_token } = tokenSet.value;
     const logoutUrl = generateLogoutUrl({ end_session_endpoint, id_token });
@@ -111,10 +62,14 @@ export function useAuth() {
     tokenSet,
     oidcConfig,
     user,
-    options,
-    loadTokenSetFromCookies,
-    saveTokenSet,
+
+    // Not really useful to the user
+    refreshTimeoutExists,
+
     logout,
-    createTimeoutForTokenRefresh,
+
+    // Not really useful to the user
+    saveTokenSet,
+    loadTokenSet,
   };
 }

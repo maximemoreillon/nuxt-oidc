@@ -1,7 +1,7 @@
 import createJwksClient from "jwks-rsa";
 import jwt from "jsonwebtoken";
 // import { getOidcConfig } from "../oidc";
-import { createError, defineEventHandler, getHeader } from "h3";
+import { createError, defineEventHandler, getCookie, getHeader } from "h3";
 import { useRuntimeConfig } from "#imports";
 import getOidcConfig from "../shared/getOidcConfig";
 
