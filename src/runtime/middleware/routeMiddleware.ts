@@ -42,20 +42,24 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     oidcAudience: audience,
   } = publicRuntimeConfigSchema.parse(runtimeConfig.public);
 
+  // Fetching OIDC configuration, to be done only once
   if (!oidcConfig.value) oidcConfig.value = await getOidcConfig(authority);
 
   const { authorization_endpoint, token_endpoint, userinfo_endpoint } =
     oidcConfig.value;
 
+  // Try to load tokens from cookies, to be done only once
   if (!tokenSet.value) loadTokenSet();
 
   if (tokenSet.value) {
+    // Fetch user info, to be done only once
     if (!user.value)
       user.value = await getUser(
         userinfo_endpoint,
         tokenSet.value.access_token
       );
 
+    // Create timeout for token refresh, to be done on the client and only once
     if (!import.meta.server && !refreshTimeoutExists.value) {
       refreshTimeoutExists.value = !!createTimeoutForTokenRefresh(
         {
@@ -67,10 +71,11 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       );
     }
 
+    // If user info available at this point, nothing more to be done
     if (user.value) return;
   }
 
-  // If no user info available, maybe the user just got redirected after logging in with the OIDC provider
+  // If no user info available, user might just haven gotten redirected here after logging in with the OIDC provider
   // In such case, URL should contain a code to verify
   // TODO: consider handling this only on a /callback route
   // TODO: consider having this logic in a dedicated page instead of here
@@ -95,8 +100,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     // TODO: might need to deal with cases where href is not available
 
     // NOTE: external: true might be important to properly refresh the page
-    navigateTo(href, { external: true });
-    return;
+    return navigateTo(href, { external: true });
   }
 
   // If no user info and no code in URL, then the user is not logged in and should be sent to the auth URL
@@ -114,5 +118,5 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     extraQueryParams,
   });
 
-  navigateTo(authUrl, { external: true });
+  return navigateTo(authUrl, { external: true });
 });
