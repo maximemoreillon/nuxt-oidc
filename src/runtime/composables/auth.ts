@@ -7,9 +7,9 @@ import {
   useRequestURL,
 } from "#imports";
 import { cookieName } from "../shared/constants";
-import { z } from "zod";
 import { createPkcePair } from "../utils/pkce";
 import getOidcConfig from "../shared/getOidcConfig";
+import publicRuntimeConfigSchema from "../shared/publicRuntimeConfigSchema";
 
 type OidcConfig = {
   token_endpoint: string;
@@ -199,19 +199,11 @@ export function useAuth() {
   }
 
   function parseRuntimeConfig() {
-    // TODO: consider having in separate file
-    const publicRuntimeConfigSchema = z.object({
-      oidcAuthority: z.string(),
-      oidcClientId: z.string(),
-      oidcAudience: z.string().optional(),
-      oidcRedirectUri: z.string().default(url.origin),
-    });
-
     const {
       oidcAuthority: authority,
       oidcClientId: client_id,
       oidcAudience: audience,
-      oidcRedirectUri: redirect_uri,
+      oidcRedirectUri: redirect_uri = url.origin,
     } = publicRuntimeConfigSchema.parse(runtimeConfig.public);
 
     return { authority, client_id, audience, redirect_uri };

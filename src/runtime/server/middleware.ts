@@ -5,6 +5,7 @@ import { createError, defineEventHandler, getCookie, getHeader } from "h3";
 import { useRuntimeConfig } from "#imports";
 import getOidcConfig from "../shared/getOidcConfig";
 import { cookieName } from "../shared/constants";
+import publicRuntimeConfigSchema from "../shared/publicRuntimeConfigSchema";
 
 // Create a single, reusable JWKS client
 // TODO: there must be nicer ways to do this
@@ -21,8 +22,10 @@ export default defineEventHandler(async (event) => {
   if (!jwksClient) {
     const runtimeConfig = useRuntimeConfig();
 
-    const { oidcAuthority: authority } = runtimeConfig.public;
-    if (!authority) throw new Error("Missing oidcAuthority in runtimeConfig");
+    const { oidcAuthority: authority } = publicRuntimeConfigSchema.parse(
+      runtimeConfig.public
+    );
+
     const { jwks_uri } = await getOidcConfig(authority as string);
 
     jwksClient = createJwksClient({
@@ -52,7 +55,7 @@ export default defineEventHandler(async (event) => {
       statusMessage: "Decoded token is null",
     });
 
-  const kid = decoded?.header?.kid;
+  const kid = decoded.header?.kid;
   if (!kid)
     throw createError({
       statusCode: 401,
