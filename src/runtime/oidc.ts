@@ -84,9 +84,8 @@ export async function getUser(userInfoEndpoint: string, token: string) {
     },
   });
 
-  // TODO: would be better to throw an error
-  // However, returning null allows the autheorization flow to proceed to the login phase
-  if (!response.ok) return null;
+  if (!response.ok)
+    throw new Error(`Error fetching user ${await response.text()}`);
   return await response.json();
 }
 

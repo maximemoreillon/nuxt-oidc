@@ -5,3 +5,8 @@ export function makeExpiryDate(expires_in: number | string) {
   expiryDate.setTime(expiryTime);
   return expiryDate;
 }
+
+export function isExpired(expires_at: string | Date) {
+  const expiryDate = new Date(expires_at);
+  return new Date().getTime() - expiryDate.getTime() > 0;
+}

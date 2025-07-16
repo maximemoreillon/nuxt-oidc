@@ -1,6 +1,6 @@
-import { makeExpiryDate } from "../misc";
+import { isExpired, makeExpiryDate } from "../misc";
 import { useState, useCookie, navigateTo } from "#imports";
-import { generateLogoutUrl } from "../oidc";
+import { generateLogoutUrl, refreshAccessToken } from "../oidc";
 import { cookieName } from "../shared/constants";
 
 type OidcConfig = {
@@ -21,6 +21,12 @@ export type TokenSet = {
   expires_at?: string | Date;
 };
 
+export type Options = {
+  authority: string;
+  client_id: string;
+  audience?: string;
+};
+
 export function useAuth() {
   const oidcCookie = useCookie<TokenSet>(cookieName);
 
@@ -30,9 +36,11 @@ export function useAuth() {
   const oidcConfig = useState<OidcConfig>("config");
 
   // TODO: consider renaming to "tokens"
-  const tokenSet = useState<TokenSet>("tokenSet");
+  const tokenSet = useState<TokenSet | null>("tokenSet", () => null);
 
   const user = useState<User>("user");
+
+  const options = useState<Options>("options");
 
   const refreshTimeoutExists = useState<boolean>(
     "refreshTimeoutExists",
@@ -46,9 +54,19 @@ export function useAuth() {
     oidcCookie.value = tokenDataWithExpiresAt;
   }
 
-  function loadTokenSet() {
+  async function loadTokenSet() {
     if (!oidcCookie?.value) return;
+
     tokenSet.value = oidcCookie.value;
+    // Refresh if needed
+    if (tokenSet.value?.expires_at && isExpired(tokenSet.value.expires_at)) {
+      const data = await refreshAccessToken(
+        oidcConfig.value.token_endpoint,
+        options.value.client_id,
+        tokenSet.value.refresh_token
+      );
+      saveTokenSet(data);
+    }
   }
 
   function logout() {
@@ -63,6 +81,7 @@ export function useAuth() {
     tokenSet,
     oidcConfig,
     user,
+    options,
 
     // Not really useful to the user
     refreshTimeoutExists,
