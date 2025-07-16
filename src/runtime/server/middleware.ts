@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { createError, defineEventHandler, getCookie, getHeader } from "h3";
 import { useRuntimeConfig } from "#imports";
 import getOidcConfig from "../shared/getOidcConfig";
+import { cookieName } from "../shared/constants";
 
 // Create a single, reusable JWKS client
 // TODO: there must be nicer ways to do this
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
 
   let token: string | undefined;
 
-  const oidcCookie = getCookie(event, "oidc");
+  const oidcCookie = getCookie(event, cookieName);
 
   if (oidcCookie) token = JSON.parse(oidcCookie).access_token;
   else token = getHeader(event, "Authorization")?.split(" ")[1];

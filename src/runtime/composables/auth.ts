@@ -1,6 +1,7 @@
 import { makeExpiryDate } from "../misc";
 import { useState, useCookie, navigateTo } from "#imports";
 import { generateLogoutUrl } from "../oidc";
+import { cookieName } from "../shared/constants";
 
 type OidcConfig = {
   token_endpoint: string;
@@ -21,7 +22,7 @@ export type TokenSet = {
 };
 
 export function useAuth() {
-  const oidcCookie = useCookie<TokenSet>("oidc");
+  const oidcCookie = useCookie<TokenSet>(cookieName);
 
   // NOTE: useState statements cannot be used outside useAuth()
 
