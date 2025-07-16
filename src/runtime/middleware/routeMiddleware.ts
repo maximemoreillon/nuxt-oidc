@@ -25,6 +25,8 @@ const publicRuntimeConfigSchema = z.object({
 });
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
+  // NOTE: if client only: "Cannot destructure property 'access_token' of 'auth.tokenSet.value' as it is undefined.""
+
   const {
     tokenSet,
     user,
@@ -33,10 +35,8 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     refreshTimeoutExists,
 
     saveTokenSet,
-    // loadTokenSet,
     login,
   } = useAuth();
-  // NOTE: if client only: "Cannot destructure property 'access_token' of 'auth.tokenSet.value' as it is undefined.""
 
   const url = useRequestURL();
   const runtimeConfig = useRuntimeConfig();

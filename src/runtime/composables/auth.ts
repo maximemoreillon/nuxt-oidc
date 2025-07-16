@@ -1,10 +1,6 @@
-import { isExpired, makeExpiryDate } from "../misc";
+import { makeExpiryDate } from "../misc";
 import { useState, useCookie, navigateTo } from "#imports";
-import {
-  generateAuthUrl,
-  generateLogoutUrl,
-  refreshAccessToken,
-} from "../oidc";
+import { generateAuthUrl, generateLogoutUrl } from "../oidc";
 import { cookieName } from "../shared/constants";
 
 type OidcConfig = {
@@ -39,8 +35,8 @@ export function useAuth() {
   const oidcConfig = useState<OidcConfig>("config"); // The stuff at .well-known/openid-configuration
   const tokenSet = useState<TokenSet>("tokenSet"); // The set of tokens (access, id, refresh)
   const user = useState<User>("user");
-  const options = useState<Options>("options"); // Not necessary but useful for functions like login
   const refreshTimeoutExists = useState<boolean>("refreshTimeoutExists"); // To prevent creating multiple timeouts
+  const options = useState<Options>("options"); // TODO: Not necessary but used in login
 
   const oidcCookie = useCookie<TokenSet>(cookieName);
 
@@ -54,6 +50,8 @@ export function useAuth() {
   }
 
   async function login() {
+    // This is just a wrapper around generateAuthUrl
+    // TODO: Could think of just using useRuntimeConfig() here but redirect_uri needs to match
     const { audience, client_id, redirect_uri } = options.value;
     const { authorization_endpoint } = oidcConfig.value;
     const extraQueryParams: { audience?: string } = {};
