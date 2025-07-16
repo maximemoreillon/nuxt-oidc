@@ -315,8 +315,7 @@ export function useAuth() {
     hrefCookie.value = url.href;
 
     // TODO: make enforcing login optional
-    const authUrl = generateAuthUrl();
-    return authUrl;
+    return generateAuthUrl();
   }
 
   return {
