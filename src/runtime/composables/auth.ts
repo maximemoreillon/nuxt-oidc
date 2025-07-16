@@ -146,6 +146,7 @@ export function useAuth() {
     const { token_endpoint } = oidcConfig.value;
     const { client_id } = options.value;
     const { refresh_token } = tokenSet.value;
+
     const body = new URLSearchParams({
       client_id,
       grant_type: "refresh_token",
@@ -167,19 +168,8 @@ export function useAuth() {
     return await response.json();
   }
 
-  function createTimeoutForTokenRefresh(
-    opts: {
-      token_endpoint: string;
-      client_id: string;
-      tokenSetRef: Ref<TokenSet>; // Passing tokenSetRef because it is a ref and it will be updated in the callback
-    },
-    callback: Function
-  ) {
-    // This function is tricky because it cannot use the states or useCookie as those cannot be used in the setTimeout Callback
-    // Hence passing token_endpoint, client_id and tokenSetRef as arguments
-
-    const { token_endpoint, client_id, tokenSetRef } = opts;
-    const { expires_at } = tokenSetRef.value;
+  function createTimeoutForTokenRefresh(callback: Function) {
+    const { expires_at } = tokenSet.value;
     if (!expires_at) throw new Error("No expires_at in tokenSet");
 
     const expiryDate = new Date(expires_at);
@@ -191,14 +181,7 @@ export function useAuth() {
 
       callback(newTokenSet);
 
-      createTimeoutForTokenRefresh(
-        {
-          token_endpoint,
-          client_id,
-          tokenSetRef, // Passing tokenSetRef because it is a ref and it will be updated in the callback
-        },
-        callback
-      );
+      createTimeoutForTokenRefresh(callback);
     }, timeLeft);
   }
 
@@ -265,16 +248,8 @@ export function useAuth() {
       if (tokenSet.value) {
         // Create timeout for token refresh, to be done on the client and only once
         if (!import.meta.server && !refreshTimeoutExists.value) {
-          const { token_endpoint } = oidcConfig.value;
-          const { client_id } = options.value;
-          refreshTimeoutExists.value = !!createTimeoutForTokenRefresh(
-            {
-              token_endpoint,
-              tokenSetRef: tokenSet,
-              client_id,
-            },
-            saveTokenSet
-          );
+          refreshTimeoutExists.value =
+            !!createTimeoutForTokenRefresh(saveTokenSet);
         }
 
         // Fetch user info, to be done only once
