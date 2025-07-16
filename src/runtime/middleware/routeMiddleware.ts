@@ -22,6 +22,7 @@ const publicRuntimeConfigSchema = z.object({
   oidcAuthority: z.string(),
   oidcClientId: z.string(),
   oidcAudience: z.string().optional(),
+  oidcRedirectUri: z.string().optional(),
 });
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
@@ -34,6 +35,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
     saveTokenSet,
     loadTokenSet,
+    login,
   } = useAuth();
   // NOTE: if client only: "Cannot destructure property 'access_token' of 'auth.tokenSet.value' as it is undefined.""
 
@@ -44,23 +46,23 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     oidcAuthority: authority,
     oidcClientId: client_id,
     oidcAudience: audience,
+    oidcRedirectUri: redirect_uri = url.origin,
   } = publicRuntimeConfigSchema.parse(runtimeConfig.public);
 
   // Not strictly needed, but might be useful in the future
-  options.value = { authority, client_id, audience };
+  options.value = { authority, client_id, audience, redirect_uri };
 
   // Fetching OIDC configuration, to be done only once
   if (!oidcConfig.value) oidcConfig.value = await getOidcConfig(authority);
 
-  const { authorization_endpoint, token_endpoint, userinfo_endpoint } =
-    oidcConfig.value;
+  const { token_endpoint, userinfo_endpoint } = oidcConfig.value;
 
   const hrefCookie = useCookie("href");
   const oidcCookie = useCookie(cookieName);
   const verifierCookie = useCookie("verifier");
 
   // TODO: allow customization
-  const redirect_uri = url.origin;
+  // const redirect_uri = url.origin;
 
   // Try to load tokens from cookies, to be done only once
   // NOTE: will try to refresh if needed
@@ -112,7 +114,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       hrefCookie.value = null;
       // TODO: might need to deal with cases where href is not available
 
-      // NOTE: external: true might be important to properly refresh the page
+      // NOTE: `external: true` important to properly refresh the page
       return navigateTo(href, { external: true });
     }
   } catch (error) {
@@ -126,15 +128,5 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // Keep track of the page the user wanted to go to originally
   hrefCookie.value = url.href;
 
-  const extraQueryParams: { audience?: string } = {};
-  if (audience) extraQueryParams.audience = audience;
-
-  const authUrl = await generateAuthUrl({
-    authorization_endpoint,
-    client_id,
-    redirect_uri,
-    extraQueryParams,
-  });
-
-  return navigateTo(authUrl, { external: true });
+  return login();
 });

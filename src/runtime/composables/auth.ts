@@ -1,6 +1,10 @@
 import { isExpired, makeExpiryDate } from "../misc";
 import { useState, useCookie, navigateTo } from "#imports";
-import { generateLogoutUrl, refreshAccessToken } from "../oidc";
+import {
+  generateAuthUrl,
+  generateLogoutUrl,
+  refreshAccessToken,
+} from "../oidc";
 import { cookieName } from "../shared/constants";
 
 type OidcConfig = {
@@ -25,12 +29,14 @@ export type Options = {
   authority: string;
   client_id: string;
   audience?: string;
+  redirect_uri: string;
 };
 
 export function useAuth() {
   const oidcCookie = useCookie<TokenSet>(cookieName);
 
-  // NOTE: useState statements cannot be used outside useAuth()
+  // NOTE: useState is a Nuxt specific SSR friendly Ref
+  // cannot be used outside useAuth()
 
   // The stuff at .well-known/openid-configuration
   const oidcConfig = useState<OidcConfig>("config");
@@ -43,11 +49,9 @@ export function useAuth() {
   // Not necessary but useful
   const options = useState<Options>("options");
 
-  const refreshTimeoutExists = useState<boolean>(
-    "refreshTimeoutExists",
-    () => false
-  );
+  const refreshTimeoutExists = useState<boolean>("refreshTimeoutExists");
 
+  // TODO: check if can be taken out of the composable
   function saveTokenSet(tokenEndpointData: TokenSet) {
     const expires_at = makeExpiryDate(tokenEndpointData.expires_in);
     const tokenDataWithExpiresAt = { ...tokenEndpointData, expires_at };
@@ -55,6 +59,7 @@ export function useAuth() {
     oidcCookie.value = tokenDataWithExpiresAt;
   }
 
+  // TODO: check if can be taken out of the composable
   async function loadTokenSet() {
     if (!oidcCookie?.value) return;
 
@@ -70,23 +75,42 @@ export function useAuth() {
     }
   }
 
+  async function login() {
+    const { audience, client_id, redirect_uri } = options.value;
+    const { authorization_endpoint } = oidcConfig.value;
+    const extraQueryParams: { audience?: string } = {};
+    if (audience) extraQueryParams.audience = audience;
+
+    const authUrl = generateAuthUrl({
+      authorization_endpoint,
+      client_id,
+      redirect_uri,
+      extraQueryParams,
+    });
+
+    return navigateTo(authUrl, { external: true });
+  }
+
   function logout() {
     if (!tokenSet.value || !user.value) return;
     const { end_session_endpoint } = oidcConfig.value;
     const { id_token } = tokenSet.value;
     const logoutUrl = generateLogoutUrl({ end_session_endpoint, id_token });
-    navigateTo(logoutUrl, { external: true });
+    return navigateTo(logoutUrl, { external: true });
   }
 
   return {
     tokenSet,
     oidcConfig,
     user,
+
+    // Not really useful to the user
     options,
 
     // Not really useful to the user
     refreshTimeoutExists,
 
+    login,
     logout,
 
     // Not really useful to the user

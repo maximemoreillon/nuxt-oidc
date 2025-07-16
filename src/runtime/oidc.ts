@@ -9,7 +9,7 @@ type GenerateAuthUrlArg = {
   extraQueryParams?: { [k: string]: string };
 };
 
-export async function generateAuthUrl(args: GenerateAuthUrlArg) {
+export function generateAuthUrl(args: GenerateAuthUrlArg) {
   const { authorization_endpoint, client_id, redirect_uri, extraQueryParams } =
     args;
 
