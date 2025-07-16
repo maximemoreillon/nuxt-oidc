@@ -146,7 +146,6 @@ export function useAuth() {
     const { token_endpoint } = oidcConfig.value;
     const { client_id } = options.value;
     const { refresh_token } = tokenSet.value;
-    console.log(refresh_token);
     const body = new URLSearchParams({
       client_id,
       grant_type: "refresh_token",
