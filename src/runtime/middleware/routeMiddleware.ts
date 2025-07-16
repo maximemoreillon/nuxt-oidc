@@ -52,6 +52,8 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   if (!tokenSet.value) loadTokenSet();
 
   if (tokenSet.value) {
+    // TODO: check if refresh needed
+
     // Fetch user info, to be done only once
     if (!user.value)
       user.value = await getUser(
