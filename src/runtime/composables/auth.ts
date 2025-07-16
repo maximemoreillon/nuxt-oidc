@@ -1,8 +1,14 @@
-import { isExpired, makeExpiryDate } from "../expiry";
-import { useState, useCookie, navigateTo } from "#imports";
+import { isExpired, makeExpiryDate } from "../utils/expiry";
+import {
+  useState,
+  useCookie,
+  navigateTo,
+  useRuntimeConfig,
+  useRequestURL,
+} from "#imports";
 import { cookieName } from "../shared/constants";
 import { z } from "zod";
-import { createPkcePair } from "../pkce";
+import { createPkcePair } from "../utils/pkce";
 import getOidcConfig from "../shared/getOidcConfig";
 
 type OidcConfig = {
@@ -23,36 +29,21 @@ export type TokenSet = {
   expires_at?: string | Date;
 };
 
-export type Options = {
-  authority: string;
-  client_id: string;
-  audience?: string;
-  redirect_uri: string;
-};
-
-const publicRuntimeConfigSchema = z.object({
-  oidcAuthority: z.string(),
-  oidcClientId: z.string(),
-  oidcAudience: z.string().optional(),
-  oidcRedirectUri: z.string().optional(), // redirectUri default would be url.origin but it is dynamic
-});
-
 export function useAuth() {
   // NOTE: useState is a Nuxt specific SSR friendly Ref
-  // cannot be used outside useAuth()
+  // cannot be used outside useAuth() composable
 
   const oidcConfig = useState<OidcConfig>("config"); // The stuff at .well-known/openid-configuration
   const tokenSet = useState<TokenSet>("tokenSet"); // The set of tokens (access, id, refresh)
   const user = useState<User>("user");
   const refreshTimeoutExists = useState<boolean>("refreshTimeoutExists"); // To prevent creating multiple timeouts
 
-  // TODO: replace by runtimeConfig
-  const runtimeConfig = useRuntimeConfig();
-  const options = useState<Options>("options"); // Not necessary but makes life easier
-
   const oidcCookie = useCookie<TokenSet | null>(cookieName);
   const hrefCookie = useCookie<string | null>("href");
   const verifierCookie = useCookie<string | null>("verifier");
+
+  const runtimeConfig = useRuntimeConfig();
+  const url = useRequestURL();
 
   function saveTokenSet(newTokenSet: TokenSet) {
     // For internal use only, should not be used by the user
@@ -65,7 +56,8 @@ export function useAuth() {
 
   function generateAuthUrl() {
     const { authorization_endpoint } = oidcConfig.value;
-    const { client_id, redirect_uri, audience } = options.value;
+
+    const { client_id, redirect_uri, audience } = parseRuntimeConfig();
 
     const { verifier, challenge } = createPkcePair();
 
@@ -73,7 +65,7 @@ export function useAuth() {
 
     authUrl.searchParams.append("response_type", "code");
     authUrl.searchParams.append("client_id", client_id);
-    authUrl.searchParams.append("scope", "openid profile offline_access");
+    authUrl.searchParams.append("scope", "openid profile offline_access"); // TODO: customizable
     authUrl.searchParams.append("code_challenge_method", "S256");
     authUrl.searchParams.append("code_challenge", challenge);
     authUrl.searchParams.append("redirect_uri", redirect_uri);
@@ -93,7 +85,7 @@ export function useAuth() {
 
   async function retrieveToken(code: string) {
     const { token_endpoint } = oidcConfig.value;
-    const { client_id, redirect_uri } = options.value;
+    const { client_id, redirect_uri } = parseRuntimeConfig();
 
     const code_verifier = verifierCookie.value;
     if (!code_verifier) throw new Error("Missing verifier");
@@ -144,7 +136,7 @@ export function useAuth() {
 
   async function refreshAccessToken() {
     const { token_endpoint } = oidcConfig.value;
-    const { client_id } = options.value;
+    const { client_id } = parseRuntimeConfig();
     const { refresh_token } = tokenSet.value;
 
     const body = new URLSearchParams({
@@ -173,8 +165,8 @@ export function useAuth() {
     if (!expires_at) throw new Error("No expires_at in tokenSet");
 
     const expiryDate = new Date(expires_at);
-    const timeLeft = expiryDate.getTime() - Date.now();
-    // const timeLeft = 10000; // For testing
+    // const timeLeft = expiryDate.getTime() - Date.now();
+    const timeLeft = 10000; // For testing
 
     return setTimeout(async () => {
       const newTokenSet = await refreshAccessToken();
@@ -206,28 +198,36 @@ export function useAuth() {
     return navigateTo(logoutUrl, { external: true });
   }
 
+  function parseRuntimeConfig() {
+    // TODO: consider having in separate file
+    const publicRuntimeConfigSchema = z.object({
+      oidcAuthority: z.string(),
+      oidcClientId: z.string(),
+      oidcAudience: z.string().optional(),
+      oidcRedirectUri: z.string().default(url.origin),
+    });
+
+    const {
+      oidcAuthority: authority,
+      oidcClientId: client_id,
+      oidcAudience: audience,
+      oidcRedirectUri: redirect_uri,
+    } = publicRuntimeConfigSchema.parse(runtimeConfig.public);
+
+    return { authority, client_id, audience, redirect_uri };
+  }
+
   async function init() {
     // This returns a URL to which the middleware redirects the user to
     // because this function itself cannot use navigateTo() when called by the middleware
 
-    const url = useRequestURL();
-
-    // Loading options from runtimeConfig
-    if (!options.value) {
-      const {
-        oidcAuthority: authority,
-        oidcClientId: client_id,
-        oidcAudience: audience,
-        oidcRedirectUri: redirect_uri = url.origin,
-      } = publicRuntimeConfigSchema.parse(runtimeConfig.public);
-
-      // Not strictly needed as a state, but makes life easier
-      options.value = { authority, client_id, audience, redirect_uri };
-    }
+    // const url = useRequestURL();
 
     // Fetching OIDC configuration, to be done only once
-    if (!oidcConfig.value)
-      oidcConfig.value = await getOidcConfig(options.value.authority);
+    if (!oidcConfig.value) {
+      const { authority } = parseRuntimeConfig();
+      oidcConfig.value = await getOidcConfig(authority);
+    }
 
     try {
       // Try to load tokens from cookies, to be done only once
@@ -264,17 +264,15 @@ export function useAuth() {
       const code = url.searchParams.get("code");
 
       // TODO: only check for code when on the redirect uri
-      // TODO: consider handling this only on a /callback route
-      // TODO: consider having this logic in a dedicated page instead of here
       if (code) {
-        const data = await retrieveToken(code);
-
-        saveTokenSet(data);
+        const tokens = await retrieveToken(code);
+        saveTokenSet(tokens);
 
         // Navigate the user to wherever they wanted to go originally
-        const href = hrefCookie.value || options.value.redirect_uri;
+        const href = hrefCookie.value || parseRuntimeConfig().redirect_uri;
         hrefCookie.value = null;
 
+        // Get the middleware to navigate to href
         return href;
       }
     } catch (error) {

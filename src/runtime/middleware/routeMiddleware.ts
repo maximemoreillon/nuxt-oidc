@@ -1,10 +1,9 @@
 import { useAuth } from "../composables/auth";
 
-import { defineNuxtRouteMiddleware } from "#imports";
+import { defineNuxtRouteMiddleware, navigateTo } from "#imports";
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  // NOTE: if client only: "Cannot destructure property 'access_token' of 'auth.tokenSet.value' as it is undefined.""
-
+  // NOTE: do not have this client-only so as to redirect server-side
   const { init } = useAuth();
 
   // NOTE: navigateTo must be used here for some reason

@@ -1,1 +1,4 @@
-- [ ] customizable cookie name
+- [ ] User customizations
+  - [ ] customizable cookie name
+  - [ ] customizable scope
+- [ ] options useSate could be replaced by useRuntimeConfig
