@@ -11,14 +11,14 @@ import { createPkcePair } from "../utils/pkce";
 import getOidcConfig from "../shared/getOidcConfig";
 import publicRuntimeConfigSchema from "../shared/publicRuntimeConfigSchema";
 
-type OidcConfig = {
+export type OidcConfig = {
   token_endpoint: string;
   authorization_endpoint: string;
   userinfo_endpoint: string;
   end_session_endpoint: string;
 };
 
-type User = any;
+export type User = any;
 
 // TODO: consider renaming to just "Tokens"
 export type TokenSet = {
