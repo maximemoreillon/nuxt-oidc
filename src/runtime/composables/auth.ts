@@ -165,8 +165,8 @@ export function useAuth() {
     if (!expires_at) throw new Error("No expires_at in tokenSet");
 
     const expiryDate = new Date(expires_at);
-    // const timeLeft = expiryDate.getTime() - Date.now();
-    const timeLeft = 10000; // For testing
+    const timeLeft = expiryDate.getTime() - Date.now();
+    // const timeLeft = 10000; // For testing
 
     return setTimeout(async () => {
       const newTokenSet = await refreshAccessToken();
