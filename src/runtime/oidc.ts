@@ -1,6 +1,9 @@
 // TODO: those could be part of the auth.ts composable right?
 import { createPkcePair } from "./pkce";
 import { useCookie, type Ref } from "#imports";
+import type { TokenSet } from "./composables/auth";
+import { makeExpiryDate } from "./misc";
+import { cookieName } from "./shared/constants";
 
 type GenerateAuthUrlArg = {
   authorization_endpoint: string;
@@ -89,11 +92,14 @@ export async function getUser(userInfoEndpoint: string, token: string) {
   return await response.json();
 }
 
-export async function refreshAccessToken(
-  token_endpoint: string,
-  client_id: string,
-  refresh_token: string
-) {
+type RefreshAccessTopenOpts = {
+  token_endpoint: string;
+  client_id: string;
+  refresh_token: string;
+};
+export async function refreshAccessToken(opts: RefreshAccessTopenOpts) {
+  // TODO: this could be useful to the user so maybe having it in the composable would be beneficial
+  const { token_endpoint, client_id, refresh_token } = opts;
   const body = new URLSearchParams({
     client_id,
     grant_type: "refresh_token",
@@ -118,41 +124,41 @@ export async function refreshAccessToken(
 type CreateTimeoutOpts = {
   token_endpoint: string;
   client_id: string;
-  tokenSetRef: Ref;
+  tokenSetRef: Ref<TokenSet>; // Passing tokenSetRef because it is a ref and it will be updated in the callback
 };
 export function createTimeoutForTokenRefresh(
   opts: CreateTimeoutOpts,
-  cb: Function
+  callback: Function
 ) {
-  const { token_endpoint, client_id, tokenSetRef } = opts;
-
   // This function is tricky because it cannot use useAuth or useCookie as those cannot be used in the setTimeout Callback
   // Hence passing token_endpoint, client_id and tokenSetRef as arguments
 
+  const { token_endpoint, client_id, tokenSetRef } = opts;
   const { expires_at } = tokenSetRef.value;
   if (!expires_at) throw new Error("No expires_at in tokenSet");
 
-  const expiryDate = new Date(tokenSetRef.value.expires_at);
+  const expiryDate = new Date(expires_at);
   const timeLeft = expiryDate.getTime() - Date.now();
-  // const timeLeft = 5000;
+  // const timeLeft = 5000; // For testing
 
-  // Passing tokenSetRef because it is a ref and it will be updated in the callback
   return setTimeout(async () => {
-    const data = await refreshAccessToken(
+    const { refresh_token } = tokenSetRef.value;
+    const newTokenSet = await refreshAccessToken({
       token_endpoint,
       client_id,
-      tokenSetRef.value.refresh_token
-    );
+      refresh_token,
+    });
 
-    cb(data);
+    // TODO: consider passing tokenSetRef as second parameter
+    callback(newTokenSet);
 
     createTimeoutForTokenRefresh(
       {
         token_endpoint,
         client_id,
-        tokenSetRef,
+        tokenSetRef, // Passing tokenSetRef because it is a ref and it will be updated in the callback
       },
-      cb
+      callback
     );
   }, timeLeft);
 }
@@ -167,4 +173,15 @@ export function generateLogoutUrl(args: {
   logoutUrl.searchParams.append("id_token_hint", id_token);
 
   return logoutUrl.toString();
+}
+
+export function saveTokenSet(
+  newTokenSet: TokenSet,
+  tokenSetRef: Ref<TokenSet>
+) {
+  // THIS IS UNUSED FOR THE TIME BEING
+  const expires_at = makeExpiryDate(newTokenSet.expires_in);
+  const tokenDataWithExpiresAt = { ...newTokenSet, expires_at };
+  tokenSetRef.value = tokenDataWithExpiresAt;
+  useCookie<TokenSet>(cookieName).value = tokenDataWithExpiresAt;
 }
