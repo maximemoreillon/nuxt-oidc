@@ -14,11 +14,10 @@
 
 <script setup lang="ts">
 const auth = useAuth();
-const { access_token } = auth.tokenSet.value;
 const { data: bearerTokenData, error: bearerTokenDataError } = useFetch(
   "/api/data",
   {
-    headers: { Authorization: `Bearer ${access_token}` },
+    headers: { Authorization: `Bearer ${auth.tokenSet.value?.access_token}` },
   }
 );
 
