@@ -36,10 +36,11 @@ export function useAuth() {
   const oidcConfig = useState<OidcConfig>("config");
 
   // TODO: consider renaming to "tokens"
-  const tokenSet = useState<TokenSet | null>("tokenSet", () => null);
+  const tokenSet = useState<TokenSet>("tokenSet");
 
   const user = useState<User>("user");
 
+  // Not necessary but useful
   const options = useState<Options>("options");
 
   const refreshTimeoutExists = useState<boolean>(
