@@ -213,8 +213,6 @@ export function useAuth() {
     // This returns a URL to which the middleware redirects the user to
     // because this function itself cannot use navigateTo() when called by the middleware
 
-    // const url = useRequestURL();
-
     // Fetching OIDC configuration, to be done only once
     if (!oidcConfig.value) {
       const { authority } = parseRuntimeConfig();
@@ -239,10 +237,9 @@ export function useAuth() {
       // If tokens available from cookies, create timeout for refresh and fetch user info
       if (tokenSet.value) {
         // Create timeout for token refresh, to be done on the client and only once
-        if (!import.meta.server && !refreshTimeoutExists.value) {
+        if (!import.meta.server && !refreshTimeoutExists.value)
           refreshTimeoutExists.value =
             !!createTimeoutForTokenRefresh(saveTokenSet);
-        }
 
         // Fetch user info, to be done only once
         if (!user.value) user.value = await getUser();
