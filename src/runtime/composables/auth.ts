@@ -36,7 +36,7 @@ export function useAuth() {
   const oidcConfig = useState<OidcConfig>("config"); // The stuff at .well-known/openid-configuration
   const tokenSet = useState<TokenSet>("tokenSet"); // The set of tokens (access, id, refresh)
   const user = useState<User>("user");
-  const refreshTimeoutExists = useState<boolean>("refreshTimeoutExists"); // To prevent creating multiple timeouts
+  const refreshTimeout = useState<NodeJS.Timeout>("refreshTimeout"); // To prevent creating multiple timeouts
 
   const oidcCookie = useCookie<TokenSet | null>(cookieName);
   const hrefCookie = useCookie<string | null>("href");
@@ -168,6 +168,8 @@ export function useAuth() {
     const timeLeft = expiryDate.getTime() - Date.now();
     // const timeLeft = 10000; // For testing
 
+    // Making sure multiple timeouts do not run concurrently
+    if (refreshTimeout.value) clearTimeout(refreshTimeout.value);
     return setTimeout(async () => {
       const newTokenSet = await refreshAccessToken();
 
@@ -223,23 +225,25 @@ export function useAuth() {
       // Try to load tokens from cookies, to be done only once
       if (!tokenSet.value) {
         if (oidcCookie.value) tokenSet.value = oidcCookie.value;
-
-        // Perform an initial refresh of the token if needed
-        if (
-          tokenSet.value?.expires_at &&
-          isExpired(tokenSet.value.expires_at)
-        ) {
-          const newTokenSet = await refreshAccessToken();
-          saveTokenSet(newTokenSet);
-        }
       }
 
       // If tokens available from cookies, create timeout for refresh and fetch user info
       if (tokenSet.value) {
-        // Create timeout for token refresh, to be done on the client and only once
-        if (!import.meta.server && !refreshTimeoutExists.value)
-          refreshTimeoutExists.value =
-            !!createTimeoutForTokenRefresh(saveTokenSet);
+        // Refresh to be handled client-side
+        if (!import.meta.server) {
+          // Refresh access token if needed
+          const { expires_at } = tokenSet.value;
+          if (expires_at && isExpired(expires_at)) {
+            console.log("Token was expired, refreshing");
+            const newTokenSet = await refreshAccessToken();
+            saveTokenSet(newTokenSet);
+            refreshTimeout.value = createTimeoutForTokenRefresh(saveTokenSet);
+          }
+
+          // Create timeout for token refresh, to be done on the client and only once
+          if (!refreshTimeout.value)
+            refreshTimeout.value = createTimeoutForTokenRefresh(saveTokenSet);
+        }
 
         // Fetch user info, to be done only once
         if (!user.value) user.value = await getUser();
