@@ -10,6 +10,7 @@ import { cookieName } from "../shared/constants";
 import { createPkcePair } from "../utils/pkce";
 import getOidcConfig from "../shared/getOidcConfig";
 import publicRuntimeConfigSchema from "../shared/publicRuntimeConfigSchema";
+import type { CookieOptions } from "#app";
 
 export type OidcConfig = {
   token_endpoint: string;
@@ -38,7 +39,9 @@ export function useAuth() {
   const user = useState<User>("user");
   const refreshTimeout = useState<NodeJS.Timeout>("refreshTimeout"); // To prevent creating multiple timeouts
 
-  const oidcCookie = useCookie<TokenSet | null>(cookieName);
+  const oidcCookie = useCookie<TokenSet | null>(cookieName, {
+    maxAge: 31536000,
+  });
   const hrefCookie = useCookie<string | null>("href");
   const verifierCookie = useCookie<string | null>("verifier");
 
