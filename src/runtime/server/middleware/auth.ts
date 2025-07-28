@@ -2,10 +2,12 @@ import createJwksClient from "jwks-rsa";
 import jwt from "jsonwebtoken";
 // import { getOidcConfig } from "../oidc";
 import { createError, defineEventHandler, getCookie, getHeader } from "h3";
-import { useRuntimeConfig } from "#imports";
-import getOidcConfig from "../shared/getOidcConfig";
-import { cookieName } from "../shared/constants";
-import publicRuntimeConfigSchema from "../shared/publicRuntimeConfigSchema";
+
+import { useRuntimeConfig } from "#imports"; // Vue app aliases are not allowed in server runtime.
+
+import getOidcConfig from "../../shared/getOidcConfig";
+import { cookieName } from "../../shared/constants";
+import publicRuntimeConfigSchema from "../../shared/publicRuntimeConfigSchema";
 
 // Create a single, reusable JWKS client
 // TODO: there must be nicer ways to do this
@@ -17,6 +19,8 @@ export default defineEventHandler(async (event) => {
 
   // Only deal with API routes
   if (!event.node.req.url?.startsWith("/api")) return;
+
+  // TODO: allow /api/auth/callback
 
   // Create client if it does not exist yet
   if (!jwksClient) {

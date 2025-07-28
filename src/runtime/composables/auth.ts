@@ -297,5 +297,7 @@ export function useAuth() {
     refreshAccessToken,
 
     init, // passed to the middleware
+
+    retrieveToken,
   };
 }
