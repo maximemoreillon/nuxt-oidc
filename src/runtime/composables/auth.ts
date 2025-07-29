@@ -1,4 +1,4 @@
-import { isExpired, makeExpiryDate } from "../utils/expiry";
+import { getTokensWithExpiresAt, isExpired } from "../utils/expiry";
 import {
   useState,
   useCookie,
@@ -6,18 +6,16 @@ import {
   useRuntimeConfig,
   useRequestURL,
 } from "#imports";
-import { cookieName } from "../shared/constants";
+import {
+  tokensCookieName,
+  redirectPath,
+  verifierCookieName,
+  cookieOptions,
+  hrefCookieName,
+} from "../shared/constants";
 import { createPkcePair } from "../utils/pkce";
-import getOidcConfig from "../shared/getOidcConfig";
+import getOidcConfig, { type OidcConfig } from "../shared/getOidcConfig";
 import publicRuntimeConfigSchema from "../shared/publicRuntimeConfigSchema";
-import type { CookieOptions } from "#app";
-
-export type OidcConfig = {
-  token_endpoint: string;
-  authorization_endpoint: string;
-  userinfo_endpoint: string;
-  end_session_endpoint: string;
-};
 
 export type User = any;
 
@@ -39,28 +37,21 @@ export function useAuth() {
   const user = useState<User>("user");
   const refreshTimeout = useState<NodeJS.Timeout>("refreshTimeout"); // To prevent creating multiple timeouts
 
-  const oidcCookie = useCookie<TokenSet | null>(cookieName, {
-    maxAge: 31536000,
-  });
-  const hrefCookie = useCookie<string | null>("href");
-  const verifierCookie = useCookie<string | null>("verifier");
+  const hrefCookie = useCookie<string | null>(hrefCookieName);
+  const verifierCookie = useCookie<string | null>(verifierCookieName);
+  const tokensCookie = useCookie<TokenSet | null>(
+    tokensCookieName,
+    cookieOptions
+  );
 
   const runtimeConfig = useRuntimeConfig();
   const url = useRequestURL();
-
-  function saveTokenSet(newTokenSet: TokenSet) {
-    // For internal use only, should not be used by the user
-    // Is here and not in a different file because accessing the tokenSet Ref
-    const expires_at = makeExpiryDate(newTokenSet.expires_in);
-    const tokenDataWithExpiresAt = { ...newTokenSet, expires_at };
-    tokenSet.value = tokenDataWithExpiresAt;
-    oidcCookie.value = tokenDataWithExpiresAt;
-  }
+  const redirect_uri = `${url.origin}${redirectPath}`;
 
   function generateAuthUrl() {
     const { authorization_endpoint } = oidcConfig.value;
 
-    const { client_id, redirect_uri, audience } = parseRuntimeConfig();
+    const { client_id, audience } = parseRuntimeConfig();
 
     const { verifier, challenge } = createPkcePair();
 
@@ -86,43 +77,7 @@ export function useAuth() {
     return authUrl.toString();
   }
 
-  async function retrieveToken(code: string) {
-    const { token_endpoint } = oidcConfig.value;
-    const { client_id, redirect_uri } = parseRuntimeConfig();
-
-    const code_verifier = verifierCookie.value;
-    if (!code_verifier) throw new Error("Missing verifier");
-
-    const body = new URLSearchParams({
-      code,
-      code_verifier,
-      redirect_uri,
-      client_id,
-      grant_type: "authorization_code",
-    });
-
-    const init: RequestInit = {
-      method: "POST",
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
-      },
-      body,
-    };
-
-    const response = await fetch(token_endpoint, init);
-
-    verifierCookie.value = null;
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(text);
-      throw new Error(text);
-    }
-
-    return await response.json();
-  }
-
-  async function getUser() {
+  async function fetchUser() {
     const { access_token } = tokenSet.value;
     const { userinfo_endpoint } = oidcConfig.value;
     const init: RequestInit = {
@@ -163,9 +118,18 @@ export function useAuth() {
     return await response.json();
   }
 
+  function saveTokenSet(newTokenSet: TokenSet) {
+    // Used as refresh timeout callback
+    const tokenDataWithExpiresAt = getTokensWithExpiresAt(newTokenSet);
+    tokenSet.value = tokenDataWithExpiresAt;
+    tokensCookie.value = tokenDataWithExpiresAt;
+  }
+
   function createTimeoutForTokenRefresh(callback: Function) {
     const { expires_at } = tokenSet.value;
-    if (!expires_at) throw new Error("No expires_at in tokenSet");
+    if (!expires_at) {
+      throw new Error("No expires_at in tokenSet");
+    }
 
     const expiryDate = new Date(expires_at);
     const timeLeft = expiryDate.getTime() - Date.now();
@@ -208,10 +172,9 @@ export function useAuth() {
       oidcAuthority: authority,
       oidcClientId: client_id,
       oidcAudience: audience,
-      oidcRedirectUri: redirect_uri = url.origin,
     } = publicRuntimeConfigSchema.parse(runtimeConfig.public);
 
-    return { authority, client_id, audience, redirect_uri };
+    return { authority, client_id, audience };
   }
 
   async function init() {
@@ -219,63 +182,40 @@ export function useAuth() {
     // because this function itself cannot use navigateTo() when called by the middleware
 
     // Fetching OIDC configuration, to be done only once
+    // TODO: find way to have this done once for the whole server at startup
     if (!oidcConfig.value) {
       const { authority } = parseRuntimeConfig();
       oidcConfig.value = await getOidcConfig(authority);
     }
 
-    try {
-      // Try to load tokens from cookies, to be done only once
-      if (!tokenSet.value) {
-        if (oidcCookie.value) tokenSet.value = oidcCookie.value;
-      }
+    // Try to load tokens from cookies, to be done only once
+    if (!tokenSet.value) {
+      if (tokensCookie.value) tokenSet.value = tokensCookie.value;
+    }
 
-      // If tokens available from cookies, create timeout for refresh and fetch user info
-      if (tokenSet.value) {
-        // Refresh to be handled client-side
-        if (!import.meta.server) {
-          // Refresh access token if needed
-          const { expires_at } = tokenSet.value;
-          if (expires_at && isExpired(expires_at)) {
-            console.log("Token was expired, refreshing");
-            const newTokenSet = await refreshAccessToken();
-            saveTokenSet(newTokenSet);
-            refreshTimeout.value = createTimeoutForTokenRefresh(saveTokenSet);
-          }
+    // If tokens available from cookies, create timeout for refresh and fetch user info
+    if (tokenSet.value) {
+      // Refresh to be handled client-side
+      if (!import.meta.server) {
+        // Refresh access token if needed
+        const { expires_at } = tokenSet.value;
 
-          // Create timeout for token refresh, to be done on the client and only once
-          if (!refreshTimeout.value)
-            refreshTimeout.value = createTimeoutForTokenRefresh(saveTokenSet);
+        if (expires_at && isExpired(expires_at)) {
+          console.info("Token was expired, refreshing");
+          const newTokenSet = await refreshAccessToken();
+          saveTokenSet(newTokenSet);
         }
 
-        // Fetch user info, to be done only once
-        if (!user.value) user.value = await getUser();
-
-        // If user info available at this point, nothing more to be done
-        if (user.value) return;
+        // Create timeout for token refresh, to be done on the client and only once
+        if (!refreshTimeout.value)
+          refreshTimeout.value = createTimeoutForTokenRefresh(saveTokenSet);
       }
 
-      // If no user info available, user might just haven gotten redirected here after logging in with the OIDC provider
-      // In such case, URL should contain a code to verify
-      const code = url.searchParams.get("code");
+      // Fetch user info, to be done only once
+      if (!user.value) user.value = await fetchUser();
 
-      // TODO: only check for code when on the redirect uri
-      if (code) {
-        const tokens = await retrieveToken(code);
-        saveTokenSet(tokens);
-
-        // Navigate the user to wherever they wanted to go originally
-        const href = hrefCookie.value || parseRuntimeConfig().redirect_uri;
-        hrefCookie.value = null;
-
-        // Get the middleware to navigate to href
-        return href;
-      }
-    } catch (error) {
-      console.error(error);
-      // In case of error, clear most cookies
-      oidcCookie.value = null;
-      verifierCookie.value = null;
+      // If user info available at this point, nothing more to be done
+      if (user.value) return;
     }
 
     // If no user info and no code in URL, then the user is not logged in and should be sent to the auth URL
@@ -296,6 +236,6 @@ export function useAuth() {
     logout,
     refreshAccessToken,
 
-    init, // passed to the middleware
+    init, // For the middleware
   };
 }

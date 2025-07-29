@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-03-27",
   runtimeConfig: {
     public: {
-      oidcAuthority: "",
+      oidcAuthority: "oidc authority default",
       oidcClientId: "",
       oidcAudience: "",
     },
