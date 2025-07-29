@@ -1,6 +1,6 @@
 {
   "name": "@moreillon/nuxt-oidc",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Nuxt OIDC",
   "repository": "maximemoreillon/nuxt-oidc",
   "license": "MIT",

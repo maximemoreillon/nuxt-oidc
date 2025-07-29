@@ -4,6 +4,7 @@ import publicRuntimeConfigSchema from "../../../shared/publicRuntimeConfigSchema
 import { redirectPath, verifierCookieName } from "../../../shared/constants";
 import { createPkcePair } from "../../../utils/pkce";
 import { oidcConfig } from "../../oidcConfig";
+import { useRuntimeConfig } from "#imports";
 
 const runtimeConfig = useRuntimeConfig();
 const { oidcClientId, oidcAudience } = publicRuntimeConfigSchema.parse(
