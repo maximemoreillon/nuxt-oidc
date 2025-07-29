@@ -14,15 +14,8 @@ import {
   hrefCookieName,
 } from "../shared/constants";
 import { createPkcePair } from "../utils/pkce";
-import getOidcConfig from "../shared/getOidcConfig";
+import getOidcConfig, { type OidcConfig } from "../shared/getOidcConfig";
 import publicRuntimeConfigSchema from "../shared/publicRuntimeConfigSchema";
-
-export type OidcConfig = {
-  token_endpoint: string;
-  authorization_endpoint: string;
-  userinfo_endpoint: string;
-  end_session_endpoint: string;
-};
 
 export type User = any;
 
@@ -83,43 +76,6 @@ export function useAuth() {
 
     return authUrl.toString();
   }
-
-  // This is no longer needed here as it was moved in /api/oauth/callback
-  // async function retrieveToken(code: string) {
-  //   const { token_endpoint } = oidcConfig.value;
-  //   const { client_id } = parseRuntimeConfig();
-
-  //   const code_verifier = verifierCookie.value;
-  //   if (!code_verifier) throw new Error("Missing verifier");
-
-  //   const body = new URLSearchParams({
-  //     code,
-  //     code_verifier,
-  //     redirect_uri,
-  //     client_id,
-  //     grant_type: "authorization_code",
-  //   });
-
-  //   const init: RequestInit = {
-  //     method: "POST",
-  //     headers: {
-  //       "content-type": "application/x-www-form-urlencoded",
-  //     },
-  //     body,
-  //   };
-
-  //   const response = await fetch(token_endpoint, init);
-
-  //   verifierCookie.value = null;
-
-  //   if (!response.ok) {
-  //     const text = await response.text();
-  //     console.error(text);
-  //     throw new Error(text);
-  //   }
-
-  //   return await response.json();
-  // }
 
   async function fetchUser() {
     const { access_token } = tokenSet.value;

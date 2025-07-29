@@ -10,8 +10,7 @@ import {
   sendRedirect,
 } from "h3";
 import { z } from "zod";
-import getOidcConfig from "../../../shared/getOidcConfig";
-import publicRuntimeConfigSchema from "../../../shared/publicRuntimeConfigSchema";
+
 import {
   tokensCookieName,
   hrefCookieName,
@@ -20,24 +19,25 @@ import {
   redirectPath,
 } from "../../../shared/constants";
 import { getTokensWithExpiresAt } from "../../../utils/expiry";
+import { oidcConfig } from "../../oidcConfig";
+import publicRuntimeConfigSchema from "../../../shared/publicRuntimeConfigSchema";
 
 const querySchema = z.object({ code: z.string() });
+const runtimeConfig = useRuntimeConfig();
+const { oidcClientId: client_id } = publicRuntimeConfigSchema.parse(
+  runtimeConfig.public
+);
 
 export default defineEventHandler(async (event) => {
+  if (!oidcConfig) throw new Error("Missing OIDC config");
   const { code } = querySchema.parse(getQuery(event));
   const { origin } = getRequestURL(event);
-
-  const runtimeConfig = useRuntimeConfig();
-
-  const { oidcAuthority, oidcClientId: client_id } =
-    publicRuntimeConfigSchema.parse(runtimeConfig.public);
 
   const code_verifier = getCookie(event, verifierCookieName);
   if (!code_verifier)
     throw createError({ statusCode: 400, statusMessage: "Missing verifier" });
 
-  const { token_endpoint } = await getOidcConfig(oidcAuthority); // PROBLEM: Will access OIDC provider each time
-
+  const { token_endpoint } = oidcConfig;
   const redirect_uri = `${origin}${redirectPath}`;
 
   const body = new URLSearchParams({

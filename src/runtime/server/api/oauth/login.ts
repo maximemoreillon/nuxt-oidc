@@ -1,18 +1,21 @@
-// NOTE: this is currently unused
+// NOTE: this handler is currently unused
 import { defineEventHandler } from "h3";
-import getOidcConfig from "../../../shared/getOidcConfig";
 import publicRuntimeConfigSchema from "../../../shared/publicRuntimeConfigSchema";
 import { redirectPath, verifierCookieName } from "../../../shared/constants";
 import { createPkcePair } from "../../../utils/pkce";
+import { oidcConfig } from "../../oidcConfig";
+
+const runtimeConfig = useRuntimeConfig();
+const { oidcClientId, oidcAudience } = publicRuntimeConfigSchema.parse(
+  runtimeConfig.public
+);
 
 export default defineEventHandler(async (event) => {
-  const runtimeConfig = useRuntimeConfig();
+  // Fetching OIDC config only once
 
-  const { oidcAuthority, oidcClientId, oidcAudience } =
-    publicRuntimeConfigSchema.parse(runtimeConfig.public);
+  if (!oidcConfig) throw new Error("Missing OIDC config");
 
-  const { authorization_endpoint } = await getOidcConfig(oidcAuthority); // PROBLEM: Will access OIDC provider each time
-
+  const { authorization_endpoint } = oidcConfig;
   const { origin } = getRequestURL(event);
   const redirect_uri = `${origin}${redirectPath}`;
 

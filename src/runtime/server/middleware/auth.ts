@@ -1,13 +1,8 @@
 import createJwksClient from "jwks-rsa";
 import jwt from "jsonwebtoken";
-// import { getOidcConfig } from "../oidc";
 import { createError, defineEventHandler, getCookie, getHeader } from "h3";
-
-import { useRuntimeConfig } from "#imports"; // Vue app aliases are not allowed in server runtime.
-
-import getOidcConfig from "../../shared/getOidcConfig";
 import { oauthRoutes, tokensCookieName } from "../../shared/constants";
-import publicRuntimeConfigSchema from "../../shared/publicRuntimeConfigSchema";
+import { oidcConfig } from "../oidcConfig";
 
 // Create a single, reusable JWKS client
 // TODO: there must be nicer ways to do this
@@ -15,6 +10,7 @@ import publicRuntimeConfigSchema from "../../shared/publicRuntimeConfigSchema";
 let jwksClient: createJwksClient.JwksClient;
 
 export default defineEventHandler(async (event) => {
+  if (!oidcConfig) throw new Error("Missing OIDC config");
   // NOTE: this server middleware works independently from the front-end logic such as route middleware
   // The only shared logic is getOidcConfig
 
@@ -27,14 +23,7 @@ export default defineEventHandler(async (event) => {
   if (!path.startsWith("/api")) return;
   if (!jwksClient) {
     // Create client if it does not exist yet
-    const runtimeConfig = useRuntimeConfig();
-
-    const { oidcAuthority: authority } = publicRuntimeConfigSchema.parse(
-      runtimeConfig.public
-    );
-
-    const { jwks_uri } = await getOidcConfig(authority as string);
-
+    const { jwks_uri } = oidcConfig;
     jwksClient = createJwksClient({
       jwksUri: jwks_uri,
       cache: true,
