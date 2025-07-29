@@ -6,24 +6,27 @@ import { createError, defineEventHandler, getCookie, getHeader } from "h3";
 import { useRuntimeConfig } from "#imports"; // Vue app aliases are not allowed in server runtime.
 
 import getOidcConfig from "../../shared/getOidcConfig";
-import { cookieName } from "../../shared/constants";
+import { oauthRoutes, tokensCookieName } from "../../shared/constants";
 import publicRuntimeConfigSchema from "../../shared/publicRuntimeConfigSchema";
 
 // Create a single, reusable JWKS client
 // TODO: there must be nicer ways to do this
+
 let jwksClient: createJwksClient.JwksClient;
 
 export default defineEventHandler(async (event) => {
   // NOTE: this server middleware works independently from the front-end logic such as route middleware
   // The only shared logic is getOidcConfig
 
-  // Only deal with API routes
-  if (!event.node.req.url?.startsWith("/api")) return;
+  const { path } = event;
 
-  // TODO: allow /api/auth/callback
+  // Allowing access to oauth server routes, namely callback
+  if (path.startsWith(oauthRoutes)) return;
 
-  // Create client if it does not exist yet
+  // // Only deal with API routes
+  if (!path.startsWith("/api")) return;
   if (!jwksClient) {
+    // Create client if it does not exist yet
     const runtimeConfig = useRuntimeConfig();
 
     const { oidcAuthority: authority } = publicRuntimeConfigSchema.parse(
@@ -41,7 +44,7 @@ export default defineEventHandler(async (event) => {
 
   let token: string | undefined;
 
-  const oidcCookie = getCookie(event, cookieName);
+  const oidcCookie = getCookie(event, tokensCookieName);
 
   if (oidcCookie) token = JSON.parse(oidcCookie).access_token;
   else token = getHeader(event, "Authorization")?.split(" ")[1];

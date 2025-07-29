@@ -12,6 +12,14 @@ import {
 import { z } from "zod";
 import getOidcConfig from "../../../shared/getOidcConfig";
 import publicRuntimeConfigSchema from "../../../shared/publicRuntimeConfigSchema";
+import {
+  tokensCookieName,
+  hrefCookieName,
+  verifierCookieName,
+  cookieOptions,
+  redirectPath,
+} from "../../../shared/constants";
+import { getTokensWithExpiresAt } from "../../../utils/expiry";
 
 const querySchema = z.object({ code: z.string() });
 
@@ -24,13 +32,13 @@ export default defineEventHandler(async (event) => {
   const { oidcAuthority, oidcClientId: client_id } =
     publicRuntimeConfigSchema.parse(runtimeConfig.public);
 
-  const code_verifier = getCookie(event, "verifier");
+  const code_verifier = getCookie(event, verifierCookieName);
   if (!code_verifier)
     throw createError({ statusCode: 400, statusMessage: "Missing verifier" });
 
   const { token_endpoint } = await getOidcConfig(oidcAuthority); // PROBLEM: Will access OIDC provider each time
 
-  const redirect_uri = `${origin}/api/oauth/callback`; // TODO: enforce consistency with login
+  const redirect_uri = `${origin}${redirectPath}`;
 
   const body = new URLSearchParams({
     code,
@@ -50,7 +58,7 @@ export default defineEventHandler(async (event) => {
 
   const response = await fetch(token_endpoint, init);
 
-  deleteCookie(event, "verifier"); // TODO: enforce consistency
+  deleteCookie(event, verifierCookieName);
 
   if (!response.ok) {
     const text = await response.text();
@@ -60,8 +68,17 @@ export default defineEventHandler(async (event) => {
 
   const tokens = await response.json();
 
-  setCookie(event, "nuxt-oidc", tokens); // TODO: enforce consistency
+  const tokensWithExpiresAt = getTokensWithExpiresAt(tokens);
+  setCookie(
+    event,
+    tokensCookieName,
+    JSON.stringify(tokensWithExpiresAt),
+    cookieOptions
+  );
 
-  // TODO: check if 302 is right
-  await sendRedirect(event, "/", 302);
+  // TODO: redirect to page the user wanted to see originally
+  // TODO: href to just be path
+  // const href = getCookie(event, hrefCookieName);
+  // if (href) return await sendRedirect(event, href);
+  return await sendRedirect(event, "/");
 });
