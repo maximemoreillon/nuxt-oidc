@@ -78,7 +78,7 @@ export default defineEventHandler(async (event) => {
 
   const href = getCookie(event, hrefCookieName);
   if (href) {
-    deleteCookie(event, href);
+    deleteCookie(event, hrefCookieName);
     return await sendRedirect(event, href);
   }
   return await sendRedirect(event, "/");
