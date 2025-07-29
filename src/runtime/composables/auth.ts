@@ -1,8 +1,4 @@
-import {
-  getTokensWithExpiresAt,
-  isExpired,
-  makeExpiryDate,
-} from "../utils/expiry";
+import { getTokensWithExpiresAt, isExpired } from "../utils/expiry";
 import {
   useState,
   useCookie,
@@ -58,13 +54,6 @@ export function useAuth() {
   const runtimeConfig = useRuntimeConfig();
   const url = useRequestURL();
   const redirect_uri = `${url.origin}${redirectPath}`;
-
-  function saveTokenSet(newTokenSet: TokenSet) {
-    // Used as refresh timeout callback
-    const tokenDataWithExpiresAt = getTokensWithExpiresAt(newTokenSet);
-    tokenSet.value = tokenDataWithExpiresAt;
-    tokensCookie.value = tokenDataWithExpiresAt;
-  }
 
   function generateAuthUrl() {
     const { authorization_endpoint } = oidcConfig.value;
@@ -173,6 +162,13 @@ export function useAuth() {
     return await response.json();
   }
 
+  function saveTokenSet(newTokenSet: TokenSet) {
+    // Used as refresh timeout callback
+    const tokenDataWithExpiresAt = getTokensWithExpiresAt(newTokenSet);
+    tokenSet.value = tokenDataWithExpiresAt;
+    tokensCookie.value = tokenDataWithExpiresAt;
+  }
+
   function createTimeoutForTokenRefresh(callback: Function) {
     const { expires_at } = tokenSet.value;
     if (!expires_at) {
@@ -230,7 +226,7 @@ export function useAuth() {
     // because this function itself cannot use navigateTo() when called by the middleware
 
     // Fetching OIDC configuration, to be done only once
-    // TODO: find way to have this done once for the whole server
+    // TODO: find way to have this done once for the whole server at startup
     if (!oidcConfig.value) {
       const { authority } = parseRuntimeConfig();
       oidcConfig.value = await getOidcConfig(authority);

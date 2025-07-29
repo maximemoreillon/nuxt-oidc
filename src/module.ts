@@ -33,10 +33,10 @@ export default defineNuxtModule<ModuleOptions>({
     });
 
     // Login server route
-    addServerHandler({
-      route: `${oauthRoutes}/login`,
-      handler: resolve("./runtime/server/api/oauth/login"),
-    });
+    // addServerHandler({
+    //   route: `${oauthRoutes}/login`,
+    //   handler: resolve("./runtime/server/api/oauth/login"),
+    // });
 
     // Callback server route
     addServerHandler({

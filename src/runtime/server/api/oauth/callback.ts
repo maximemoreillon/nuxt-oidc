@@ -76,9 +76,7 @@ export default defineEventHandler(async (event) => {
     cookieOptions
   );
 
-  // TODO: redirect to page the user wanted to see originally
-  // TODO: href to just be path
-  // const href = getCookie(event, hrefCookieName);
-  // if (href) return await sendRedirect(event, href);
+  const href = getCookie(event, hrefCookieName);
+  if (href) return await sendRedirect(event, href);
   return await sendRedirect(event, "/");
 });

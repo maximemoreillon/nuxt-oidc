@@ -19,7 +19,6 @@ export default defineEventHandler(async (event) => {
   const { verifier, challenge } = createPkcePair();
   setCookie(event, verifierCookieName, verifier);
 
-  // TODO: make an external function
   const authUrl = new URL(authorization_endpoint);
   authUrl.searchParams.append("response_type", "code");
   authUrl.searchParams.append("client_id", oidcClientId);
