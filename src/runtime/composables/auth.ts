@@ -192,22 +192,23 @@ export function useAuth() {
 
     // Try to load tokens from cookies, to be done only once
     if (!tokenSet.value) {
-      if (tokensCookie.value) tokenSet.value = tokensCookie.value;
-    }
+      if (tokensCookie.value) {
+        tokenSet.value = tokensCookie.value;
 
-    // If tokens available from cookies, create timeout for refresh and fetch user info
-    if (tokenSet.value) {
-      // Refresh to be handled client-side
-      if (!import.meta.server) {
         // Refresh access token if needed
         const { expires_at } = tokenSet.value;
-
         if (expires_at && isExpired(expires_at)) {
           console.info("Token was expired, refreshing");
           const newTokenSet = await refreshAccessToken();
           saveTokenSet(newTokenSet);
         }
+      }
+    }
 
+    // If tokens available from cookies, create timeout for refresh and fetch user info
+    if (tokenSet.value) {
+      // Refresh timeout to be handled client-side
+      if (!import.meta.server) {
         // Create timeout for token refresh, to be done on the client and only once
         if (!refreshTimeout.value)
           refreshTimeout.value = createTimeoutForTokenRefresh(saveTokenSet);
