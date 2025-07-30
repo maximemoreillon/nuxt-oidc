@@ -87,8 +87,10 @@ export function useAuth() {
     };
     const response = await fetch(userinfo_endpoint, init);
 
-    if (!response.ok)
+    if (!response.ok) {
+      tokensCookie.value = null;
       throw new Error(`Error fetching user ${await response.text()}`);
+    }
     return await response.json();
   }
 
