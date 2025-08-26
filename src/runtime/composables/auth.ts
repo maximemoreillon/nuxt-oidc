@@ -114,6 +114,8 @@ export function useAuth() {
     };
 
     const response = await fetch(token_endpoint, init);
+
+    // TODO: reset everything and send user to login
     if (!response.ok)
       throw new Error(`Error refreshing token ${await response.text()}`);
 
@@ -125,6 +127,11 @@ export function useAuth() {
     const tokenDataWithExpiresAt = getTokensWithExpiresAt(newTokenSet);
     tokenSet.value = tokenDataWithExpiresAt;
     tokensCookie.value = tokenDataWithExpiresAt;
+  }
+
+  function reset() {
+    tokensCookie.value = null;
+    reloadNuxtApp();
   }
 
   function createTimeoutForTokenRefresh(callback: Function) {
@@ -190,35 +197,41 @@ export function useAuth() {
       oidcConfig.value = await getOidcConfig(authority);
     }
 
-    // Try to load tokens from cookies, to be done only once
-    if (!tokenSet.value) {
-      if (tokensCookie.value) {
-        tokenSet.value = tokensCookie.value;
+    // Allow token refresh and user fetching to fail, in which case the app is reloaded
+    try {
+      // Try to load tokens from cookies, to be done only once
+      if (!tokenSet.value) {
+        if (tokensCookie.value) {
+          tokenSet.value = tokensCookie.value;
 
-        // Refresh access token if needed
-        const { expires_at } = tokenSet.value;
-        if (expires_at && isExpired(expires_at)) {
-          console.info("Token was expired, refreshing");
-          const newTokenSet = await refreshAccessToken();
-          saveTokenSet(newTokenSet);
+          // Initial refresh of the access token if needed
+          const { expires_at } = tokenSet.value;
+          if (expires_at && isExpired(expires_at)) {
+            console.info("Token was expired, refreshing");
+            const newTokenSet = await refreshAccessToken();
+            saveTokenSet(newTokenSet);
+          }
         }
       }
-    }
 
-    // If tokens available from cookies, create timeout for refresh and fetch user info
-    if (tokenSet.value) {
-      // Refresh timeout to be handled client-side
-      if (!import.meta.server) {
-        // Create timeout for token refresh, to be done on the client and only once
-        if (!refreshTimeout.value)
-          refreshTimeout.value = createTimeoutForTokenRefresh(saveTokenSet);
+      // If tokens available from cookies, create timeout for refresh and fetch user info
+      if (tokenSet.value) {
+        // Refresh timeout to be handled client-side
+        if (!import.meta.server) {
+          // Create timeout for token refresh, to be done on the client and only once
+          if (!refreshTimeout.value)
+            refreshTimeout.value = createTimeoutForTokenRefresh(saveTokenSet);
+        }
+
+        // Fetch user info, to be done only once
+        if (!user.value) user.value = await fetchUser();
+
+        // If user info available at this point, nothing more to be done
+        if (user.value) return;
       }
-
-      // Fetch user info, to be done only once
-      if (!user.value) user.value = await fetchUser();
-
-      // If user info available at this point, nothing more to be done
-      if (user.value) return;
+    } catch (error) {
+      console.error(error);
+      reset();
     }
 
     // If no user info and no code in URL, then the user is not logged in and should be sent to the auth URL
