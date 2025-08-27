@@ -5,6 +5,7 @@ import {
   navigateTo,
   useRuntimeConfig,
   useRequestURL,
+  reloadNuxtApp,
 } from "#imports";
 import {
   tokensCookieName,
