@@ -174,6 +174,7 @@ export function useAuth() {
   function logout() {
     if (!tokenSet.value || !user.value) return;
     const logoutUrl = generateLogoutUrl();
+    tokensCookie.value = null;
     return navigateTo(logoutUrl, { external: true });
   }
 
