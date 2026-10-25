@@ -59,7 +59,13 @@ export function useAuth() {
     reloadNuxtApp();
   }
 
-  function scheduleRefresh() {
+  // Refresh before expiry, 60 seconds early or halfway through for short-lived tokens
+  function getRefreshDelay() {
+    const { expires_at, expires_in } = tokenSet.value!;
+    return expires_at - Date.now() - Math.min(60, expires_in / 2) * 1000;
+  }
+
+  function scheduleRefresh(delay = getRefreshDelay()) {
     // Making sure multiple timeouts do not run concurrently
     clearTimeout(refreshTimeout.value);
     refreshTimeout.value = setTimeout(async () => {
@@ -68,9 +74,12 @@ export function useAuth() {
         scheduleRefresh();
       } catch (error) {
         console.error(error);
-        reset();
+        // Only log out when the provider rejected the refresh token, retry otherwise (e.g. network down)
+        const { statusCode } = error as { statusCode?: number };
+        if (statusCode === 400 || statusCode === 401) reset();
+        else scheduleRefresh(10000);
       }
-    }, tokenSet.value!.expires_at - Date.now());
+    }, delay);
   }
 
   function login(redirect = "/") {

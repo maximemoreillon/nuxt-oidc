@@ -55,7 +55,7 @@ At the provider, register a public client (no client secret) with `<your app ori
 
 - **Pages:** a global route middleware sends users who are not logged in to the provider, then back to the page they asked for
 - **API routes:** a server middleware protects every `/api/**` route. It reads the access token from the module's cookie or from an `Authorization: Bearer` header, and verifies its signature, issuer and (if `oidcAudience` is set) audience. Requests without a valid token get a 401
-- **Tokens** are stored in a cookie, so they are available during server-side rendering, and refreshed automatically when they expire
+- **Tokens** are stored in a cookie, so they are available during server-side rendering. The browser refreshes them shortly before they expire, and only logs the user out when the provider rejects the refresh token
 
 The module adds two server routes: `/api/oauth/login` and `/api/oauth/callback`.
 
@@ -100,6 +100,8 @@ export default defineEventHandler((event) => {
 - Login is enforced on every page and every `/api/**` route, with no opt-out yet
 - The scope is fixed to `openid profile offline_access`
 - Requires Node.js 20 or later on the server
+- Each tab refreshes tokens on its own, so refresh token rotation at the provider can log users with several tabs open out
+- API routes do not refresh tokens: requests made with an expired access token get a 401
 
 ## Development
 
