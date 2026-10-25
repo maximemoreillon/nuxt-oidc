@@ -1,5 +1,10 @@
+import { defaultCookiePrefix, defaultScope, getCookieNames } from "./constants";
+
+const optionalString = (value: unknown) =>
+  typeof value === "string" && value ? value : undefined;
+
 export function parsePublicConfig(config: Record<string, unknown>) {
-  const { oidcAuthority, oidcClientId, oidcAudience } = config;
+  const { oidcAuthority, oidcClientId, oidcAudience, oidcScope, oidcCookiePrefix } = config;
 
   if (typeof oidcAuthority !== "string")
     throw new Error("Missing oidcAuthority in public runtimeConfig");
@@ -9,6 +14,8 @@ export function parsePublicConfig(config: Record<string, unknown>) {
   return {
     authority: oidcAuthority,
     client_id: oidcClientId,
-    audience: typeof oidcAudience === "string" && oidcAudience ? oidcAudience : undefined,
+    audience: optionalString(oidcAudience),
+    scope: optionalString(oidcScope) ?? defaultScope,
+    cookies: getCookieNames(optionalString(oidcCookiePrefix) ?? defaultCookiePrefix),
   };
 }

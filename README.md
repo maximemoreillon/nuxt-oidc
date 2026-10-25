@@ -38,6 +38,8 @@ export default defineNuxtConfig({
       oidcAuthority: "",
       oidcClientId: "",
       oidcAudience: "",
+      oidcScope: "",
+      oidcCookiePrefix: "",
     },
   },
 });
@@ -48,6 +50,8 @@ export default defineNuxtConfig({
 | `oidcAuthority` | `NUXT_PUBLIC_OIDC_AUTHORITY`  | URL of the OIDC provider, where `/.well-known/openid-configuration` is served (required)  |
 | `oidcClientId`  | `NUXT_PUBLIC_OIDC_CLIENT_ID`  | OIDC client ID (required)                                                                  |
 | `oidcAudience`  | `NUXT_PUBLIC_OIDC_AUDIENCE`   | Sent as the `audience` parameter (Auth0) and checked in the access token's `aud` claim     |
+| `oidcScope`     | `NUXT_PUBLIC_OIDC_SCOPE`      | Requested scopes. Defaults to `openid profile offline_access` (`offline_access` is needed for token refresh) |
+| `oidcCookiePrefix` | `NUXT_PUBLIC_OIDC_COOKIE_PREFIX` | Prefix of the module's cookie names, to run several apps on the same host. Defaults to `nuxt-oidc` |
 
 At the provider, register a public client (no client secret) with `<your app origin>/api/oauth/callback` as redirect URI.
 
@@ -55,7 +59,7 @@ At the provider, register a public client (no client secret) with `<your app ori
 
 - **Pages:** a global route middleware sends users who are not logged in to the provider, then back to the page they asked for
 - **API routes:** a server middleware protects every `/api/**` route. It reads the access token from the module's cookie or from an `Authorization: Bearer` header, and verifies its signature, issuer and (if `oidcAudience` is set) audience. Requests without a valid token get a 401
-- **Tokens** are stored in a cookie, so they are available during server-side rendering. The browser refreshes them shortly before they expire, and only logs the user out when the provider rejects the refresh token
+- **Tokens** are stored in cookies, one per token to stay under the 4 KB limit per cookie, so they are available during server-side rendering. The browser refreshes them shortly before they expire, and only logs the user out when the provider rejects the refresh token
 
 The module adds two server routes: `/api/oauth/login` and `/api/oauth/callback`.
 
@@ -98,10 +102,13 @@ export default defineEventHandler((event) => {
 ## Limitations
 
 - Login is enforced on every page and every `/api/**` route, with no opt-out yet
-- The scope is fixed to `openid profile offline_access`
 - Requires Node.js 20 or later on the server
 - Each tab refreshes tokens on its own, so refresh token rotation at the provider can log users with several tabs open out
 - API routes do not refresh tokens: requests made with an expired access token get a 401
+
+## Upgrading from 0.6
+
+Tokens used to be stored in a single `nuxt-oidc-tokens` cookie, which is no longer read: users have to log in again once.
 
 ## Development
 

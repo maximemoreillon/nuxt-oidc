@@ -1,11 +1,6 @@
 import { defineEventHandler, getQuery, getRequestURL, sendRedirect, setCookie } from "h3";
 import { useRuntimeConfig } from "#imports";
-import {
-  flowCookieOptions,
-  hrefCookieName,
-  stateCookieName,
-  verifierCookieName,
-} from "../../../shared/constants";
+import { flowCookieOptions } from "../../../shared/constants";
 import { parsePublicConfig } from "../../../shared/config";
 import { getRedirectUri } from "../../../shared/oidc";
 import { useOidcConfig } from "../../oidcConfig";
@@ -20,7 +15,7 @@ const base64Url = (bytes: ArrayBuffer | Uint8Array) =>
 const randomString = () => base64Url(crypto.getRandomValues(new Uint8Array(32)));
 
 export default defineEventHandler(async (event) => {
-  const { client_id, audience } = parsePublicConfig(useRuntimeConfig(event).public);
+  const { client_id, audience, scope, cookies } = parsePublicConfig(useRuntimeConfig(event).public);
   const { authorization_endpoint } = await useOidcConfig();
 
   const verifier = randomString();
@@ -29,18 +24,18 @@ export default defineEventHandler(async (event) => {
   );
   const state = randomString();
 
-  setCookie(event, verifierCookieName, verifier, flowCookieOptions);
-  setCookie(event, stateCookieName, state, flowCookieOptions);
+  setCookie(event, cookies.verifier, verifier, flowCookieOptions);
+  setCookie(event, cookies.state, state, flowCookieOptions);
 
   // Keep track of the page the user wanted to go to originally, only allowing same-origin paths
   const { redirect } = getQuery(event);
   if (typeof redirect === "string" && redirect.startsWith("/") && !redirect.startsWith("//"))
-    setCookie(event, hrefCookieName, redirect, flowCookieOptions);
+    setCookie(event, cookies.href, redirect, flowCookieOptions);
 
   const authUrl = new URL(authorization_endpoint);
   authUrl.searchParams.append("response_type", "code");
   authUrl.searchParams.append("client_id", client_id);
-  authUrl.searchParams.append("scope", "openid profile offline_access"); // TODO: customizable
+  authUrl.searchParams.append("scope", scope);
   authUrl.searchParams.append("code_challenge_method", "S256");
   authUrl.searchParams.append("code_challenge", challenge);
   authUrl.searchParams.append("state", state);

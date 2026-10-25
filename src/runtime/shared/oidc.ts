@@ -16,6 +16,13 @@ export const getOidcConfig = (authority: string) =>
 
 export const getRedirectUri = (origin: string) => `${origin}${redirectPath}`;
 
+// Content of each token cookie
+export const splitTokens = ({ access_token, expires_in, expires_at, refresh_token, id_token }: TokenSet) => ({
+  access: { access_token, expires_in, expires_at },
+  refresh: refresh_token,
+  id: id_token,
+});
+
 // Used for both the authorization code exchange and token refresh
 export const requestTokens = (
   token_endpoint: string,

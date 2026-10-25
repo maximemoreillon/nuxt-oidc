@@ -9,27 +9,22 @@ import {
   setCookie,
   sendRedirect,
 } from "h3";
-import {
-  tokensCookieName,
-  hrefCookieName,
-  stateCookieName,
-  verifierCookieName,
-  cookieOptions,
-} from "../../../shared/constants";
+import { cookieOptions, legacyTokensCookieName } from "../../../shared/constants";
 import { withExpiresAt } from "../../../utils/expiry";
-import { getRedirectUri, requestTokens } from "../../../shared/oidc";
+import { getRedirectUri, requestTokens, splitTokens } from "../../../shared/oidc";
 import { parsePublicConfig } from "../../../shared/config";
 import { useOidcConfig } from "../../oidcConfig";
 
 export default defineEventHandler(async (event) => {
+  const { client_id, cookies } = parsePublicConfig(useRuntimeConfig(event).public);
   const { code, state, error, error_description } = getQuery(event);
 
-  const code_verifier = getCookie(event, verifierCookieName);
-  const expectedState = getCookie(event, stateCookieName);
-  const href = getCookie(event, hrefCookieName);
-  deleteCookie(event, verifierCookieName);
-  deleteCookie(event, stateCookieName);
-  deleteCookie(event, hrefCookieName);
+  const code_verifier = getCookie(event, cookies.verifier);
+  const expectedState = getCookie(event, cookies.state);
+  const href = getCookie(event, cookies.href);
+  deleteCookie(event, cookies.verifier);
+  deleteCookie(event, cookies.state);
+  deleteCookie(event, cookies.href);
 
   if (error)
     throw createError({ statusCode: 401, statusMessage: String(error_description ?? error) });
@@ -40,7 +35,6 @@ export default defineEventHandler(async (event) => {
   if (!state || state !== expectedState)
     throw createError({ statusCode: 400, statusMessage: "Invalid state" });
 
-  const { client_id } = parsePublicConfig(useRuntimeConfig(event).public);
   const { token_endpoint } = await useOidcConfig();
 
   const tokens = await requestTokens(token_endpoint, {
@@ -51,7 +45,11 @@ export default defineEventHandler(async (event) => {
     grant_type: "authorization_code",
   });
 
-  setCookie(event, tokensCookieName, JSON.stringify(withExpiresAt(tokens)), cookieOptions);
+  const { access, refresh, id } = splitTokens(withExpiresAt(tokens));
+  setCookie(event, cookies.access, JSON.stringify(access), cookieOptions);
+  if (refresh) setCookie(event, cookies.refresh, refresh, cookieOptions);
+  if (id) setCookie(event, cookies.id, id, cookieOptions);
+  deleteCookie(event, legacyTokensCookieName);
 
   return sendRedirect(event, href ?? "/");
 });

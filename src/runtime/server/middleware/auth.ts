@@ -8,7 +8,7 @@ import {
   type H3Event,
 } from "h3";
 import { useRuntimeConfig } from "#imports";
-import { oauthRoutes, tokensCookieName } from "../../shared/constants";
+import { oauthRoutes } from "../../shared/constants";
 import { parsePublicConfig } from "../../shared/config";
 import { useOidcConfig } from "../oidcConfig";
 
@@ -17,11 +17,11 @@ import { useOidcConfig } from "../oidcConfig";
 // Created once, caches the signing keys
 let jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
 
-function getToken(event: H3Event): string | undefined {
-  const tokensCookie = getCookie(event, tokensCookieName);
-  if (!tokensCookie) return getHeader(event, "Authorization")?.split(" ")[1];
+function getToken(event: H3Event, cookieName: string): string | undefined {
+  const accessCookie = getCookie(event, cookieName);
+  if (!accessCookie) return getHeader(event, "Authorization")?.split(" ")[1];
   try {
-    return JSON.parse(tokensCookie).access_token;
+    return JSON.parse(accessCookie).access_token;
   } catch {
     return undefined;
   }
@@ -33,7 +33,9 @@ export default defineEventHandler(async (event) => {
   // Only deal with API routes, except the oauth ones (login, callback)
   if (!pathname.startsWith("/api/") || pathname.startsWith(`${oauthRoutes}/`)) return;
 
-  const token = getToken(event);
+  const { audience, cookies } = parsePublicConfig(useRuntimeConfig(event).public);
+
+  const token = getToken(event, cookies.access);
   if (!token)
     throw createError({
       statusCode: 401,
@@ -42,7 +44,6 @@ export default defineEventHandler(async (event) => {
 
   const { issuer, jwks_uri } = await useOidcConfig();
   jwks ??= createRemoteJWKSet(new URL(jwks_uri));
-  const { audience } = parsePublicConfig(useRuntimeConfig(event).public);
 
   try {
     const { payload } = await jwtVerify(token, jwks, { issuer, audience });

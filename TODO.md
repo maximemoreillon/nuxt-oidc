@@ -1,5 +1,5 @@
-- [ ] User customizations
-  - [ ] customizable cookie name
-  - [ ] customizable scope
+- [x] User customizations
+  - [x] customizable cookie name
+  - [x] customizable scope
 - [x] options useSate could be replaced by useRuntimeConfig
 - [ ] Login optional

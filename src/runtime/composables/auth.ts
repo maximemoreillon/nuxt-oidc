@@ -1,7 +1,7 @@
 import { isExpired, withExpiresAt } from "../utils/expiry";
 import { useState, useCookie, navigateTo, useRuntimeConfig, reloadNuxtApp } from "#imports";
-import { tokensCookieName, cookieOptions, loginPath } from "../shared/constants";
-import { getOidcConfig, requestTokens, type OidcConfig } from "../shared/oidc";
+import { cookieOptions, loginPath } from "../shared/constants";
+import { getOidcConfig, requestTokens, splitTokens, type OidcConfig } from "../shared/oidc";
 import { parsePublicConfig } from "../shared/config";
 
 export type User = any;
@@ -9,11 +9,13 @@ export type User = any;
 // TODO: consider renaming to just "Tokens"
 export type TokenSet = {
   access_token: string;
-  refresh_token: string;
-  id_token: string;
+  refresh_token?: string; // Only with the offline_access scope
+  id_token?: string;
   expires_in: number;
   expires_at: number;
 };
+
+type AccessCookie = ReturnType<typeof splitTokens>["access"];
 
 const loginUrl = (redirect: string) =>
   `${loginPath}?redirect=${encodeURIComponent(redirect)}`;
@@ -27,9 +29,28 @@ export function useAuth() {
   const user = useState<User>("oidc:user");
   const refreshTimeout = useState<ReturnType<typeof setTimeout>>("oidc:refreshTimeout"); // To prevent creating multiple timeouts
 
-  const tokensCookie = useCookie<TokenSet | null>(tokensCookieName, cookieOptions);
+  const { authority, client_id, cookies } = parsePublicConfig(useRuntimeConfig().public);
 
-  const { authority, client_id } = parsePublicConfig(useRuntimeConfig().public);
+  const accessCookie = useCookie<AccessCookie | null>(cookies.access, cookieOptions);
+  const refreshTokenCookie = useCookie<string | null>(cookies.refresh, cookieOptions);
+  const idTokenCookie = useCookie<string | null>(cookies.id, cookieOptions);
+
+  function readCookies(): TokenSet | undefined {
+    if (!accessCookie.value) return;
+    return {
+      ...accessCookie.value,
+      refresh_token: refreshTokenCookie.value ?? undefined,
+      id_token: idTokenCookie.value ?? undefined,
+    };
+  }
+
+  // Clears the cookies when called without tokens
+  function writeCookies(tokens?: TokenSet) {
+    const split = tokens && splitTokens(tokens);
+    accessCookie.value = split?.access ?? null;
+    refreshTokenCookie.value = split?.refresh ?? null;
+    idTokenCookie.value = split?.id ?? null;
+  }
 
   function fetchUser() {
     return $fetch<User>(oidcConfig.value.userinfo_endpoint, {
@@ -41,7 +62,7 @@ export function useAuth() {
     // Refresh responses may omit the refresh or ID token, so the previous ones are kept
     const merged = withExpiresAt({ ...tokenSet.value, ...newTokens });
     tokenSet.value = merged;
-    tokensCookie.value = merged;
+    writeCookies(merged);
     return merged;
   }
 
@@ -49,13 +70,13 @@ export function useAuth() {
     const newTokens = await requestTokens(oidcConfig.value.token_endpoint, {
       client_id,
       grant_type: "refresh_token",
-      refresh_token: tokenSet.value!.refresh_token,
+      refresh_token: tokenSet.value!.refresh_token ?? "", // Rejected by the provider if missing
     });
     return saveTokenSet(newTokens);
   }
 
   function reset() {
-    tokensCookie.value = null;
+    writeCookies();
     reloadNuxtApp();
   }
 
@@ -89,8 +110,9 @@ export function useAuth() {
   function logout() {
     if (!tokenSet.value || !user.value) return;
     const logoutUrl = new URL(oidcConfig.value.end_session_endpoint);
-    logoutUrl.searchParams.append("id_token_hint", tokenSet.value.id_token);
-    tokensCookie.value = null;
+    const { id_token } = tokenSet.value;
+    if (id_token) logoutUrl.searchParams.append("id_token_hint", id_token);
+    writeCookies();
     return navigateTo(logoutUrl.toString(), { external: true });
   }
 
@@ -104,8 +126,8 @@ export function useAuth() {
     try {
       // Load tokens from cookies only once, refreshing them if needed
       if (!tokenSet.value) {
-        if (!tokensCookie.value) return loginUrl(redirect); // TODO: make enforcing login optional
-        tokenSet.value = tokensCookie.value;
+        tokenSet.value = readCookies();
+        if (!tokenSet.value) return loginUrl(redirect); // TODO: make enforcing login optional
         if (isExpired(tokenSet.value.expires_at)) await refreshAccessToken();
       }
 
