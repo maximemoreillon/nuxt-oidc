@@ -23,8 +23,6 @@
     "dev:build": "nuxi build playground",
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxi prepare playground",
     "release-original": "npm run prepack && changelogen --release && npm publish && git push --follow-tags",
-    "release": "nuxt-module-build build --stub && nuxt-module-build prepare && npm publish",
-    "ci-release": "npm run release",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest watch",
@@ -32,9 +30,7 @@
   },
   "dependencies": {
     "@nuxt/kit": "^3.16.1",
-    "jsonwebtoken": "^9.0.2",
-    "jwks-rsa": "^3.2.0",
-    "zod": "^4.1.13"
+    "jose": "^6.2.13"
   },
   "devDependencies": {
     "@nuxt/devtools": "^2.3.2",

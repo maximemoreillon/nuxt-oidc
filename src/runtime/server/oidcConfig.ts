@@ -1,8 +1,17 @@
-import getOidcConfig, { OidcConfig } from "../shared/getOidcConfig";
-import publicRuntimeConfigSchema from "../shared/publicRuntimeConfigSchema";
+import { getOidcConfig, type OidcConfig } from "../shared/oidc";
+import { parsePublicConfig } from "../shared/config";
 import { useRuntimeConfig } from "#imports";
 
-export let oidcConfig: OidcConfig | undefined;
-const runtimeConfig = useRuntimeConfig();
-const { oidcAuthority } = publicRuntimeConfigSchema.parse(runtimeConfig.public);
-getOidcConfig(oidcAuthority).then((c) => (oidcConfig = c));
+// Fetched once for the whole server, retried on the next call if it failed
+let oidcConfig: Promise<OidcConfig> | undefined;
+
+export function useOidcConfig() {
+  if (!oidcConfig) {
+    const { authority } = parsePublicConfig(useRuntimeConfig().public);
+    oidcConfig = getOidcConfig(authority).catch((error) => {
+      oidcConfig = undefined;
+      throw error;
+    });
+  }
+  return oidcConfig;
+}

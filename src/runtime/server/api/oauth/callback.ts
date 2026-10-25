@@ -9,77 +9,49 @@ import {
   setCookie,
   sendRedirect,
 } from "h3";
-import { z } from "zod";
-
 import {
   tokensCookieName,
   hrefCookieName,
+  stateCookieName,
   verifierCookieName,
   cookieOptions,
-  redirectPath,
 } from "../../../shared/constants";
-import { getTokensWithExpiresAt } from "../../../utils/expiry";
-import { oidcConfig } from "../../oidcConfig";
-import publicRuntimeConfigSchema from "../../../shared/publicRuntimeConfigSchema";
-
-const querySchema = z.object({ code: z.string() });
-const runtimeConfig = useRuntimeConfig();
-const { oidcClientId: client_id } = publicRuntimeConfigSchema.parse(
-  runtimeConfig.public
-);
+import { withExpiresAt } from "../../../utils/expiry";
+import { getRedirectUri, requestTokens } from "../../../shared/oidc";
+import { parsePublicConfig } from "../../../shared/config";
+import { useOidcConfig } from "../../oidcConfig";
 
 export default defineEventHandler(async (event) => {
-  if (!oidcConfig) throw new Error("Missing OIDC config");
-  const { code } = querySchema.parse(getQuery(event));
-  const { origin } = getRequestURL(event);
+  const { code, state, error, error_description } = getQuery(event);
 
   const code_verifier = getCookie(event, verifierCookieName);
+  const expectedState = getCookie(event, stateCookieName);
+  const href = getCookie(event, hrefCookieName);
+  deleteCookie(event, verifierCookieName);
+  deleteCookie(event, stateCookieName);
+  deleteCookie(event, hrefCookieName);
+
+  if (error)
+    throw createError({ statusCode: 401, statusMessage: String(error_description ?? error) });
+  if (typeof code !== "string")
+    throw createError({ statusCode: 400, statusMessage: "Missing code" });
   if (!code_verifier)
     throw createError({ statusCode: 400, statusMessage: "Missing verifier" });
+  if (!state || state !== expectedState)
+    throw createError({ statusCode: 400, statusMessage: "Invalid state" });
 
-  const { token_endpoint } = oidcConfig;
-  const redirect_uri = `${origin}${redirectPath}`;
+  const { client_id } = parsePublicConfig(useRuntimeConfig(event).public);
+  const { token_endpoint } = await useOidcConfig();
 
-  const body = new URLSearchParams({
+  const tokens = await requestTokens(token_endpoint, {
     code,
     code_verifier,
-    redirect_uri,
+    redirect_uri: getRedirectUri(getRequestURL(event).origin),
     client_id,
     grant_type: "authorization_code",
   });
 
-  const init: RequestInit = {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body,
-  };
+  setCookie(event, tokensCookieName, JSON.stringify(withExpiresAt(tokens)), cookieOptions);
 
-  const response = await fetch(token_endpoint, init);
-
-  deleteCookie(event, verifierCookieName);
-
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(text);
-    throw new Error(text);
-  }
-
-  const tokens = await response.json();
-
-  const tokensWithExpiresAt = getTokensWithExpiresAt(tokens);
-  setCookie(
-    event,
-    tokensCookieName,
-    JSON.stringify(tokensWithExpiresAt),
-    cookieOptions
-  );
-
-  const href = getCookie(event, hrefCookieName);
-  if (href) {
-    deleteCookie(event, hrefCookieName);
-    return await sendRedirect(event, href);
-  }
-  return await sendRedirect(event, "/");
+  return sendRedirect(event, href ?? "/");
 });

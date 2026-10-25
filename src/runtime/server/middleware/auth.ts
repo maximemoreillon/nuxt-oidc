@@ -1,68 +1,53 @@
-import createJwksClient from "jwks-rsa";
-import jwt from "jsonwebtoken";
-import { createError, defineEventHandler, getCookie, getHeader } from "h3";
+import { createRemoteJWKSet, jwtVerify } from "jose";
+import {
+  createError,
+  defineEventHandler,
+  getCookie,
+  getHeader,
+  getRequestURL,
+  type H3Event,
+} from "h3";
+import { useRuntimeConfig } from "#imports";
 import { oauthRoutes, tokensCookieName } from "../../shared/constants";
-import { oidcConfig } from "../oidcConfig";
+import { parsePublicConfig } from "../../shared/config";
+import { useOidcConfig } from "../oidcConfig";
 
-// Create a single, reusable JWKS client
-// TODO: there must be nicer ways to do this
+// NOTE: this server middleware works independently from the front-end logic such as route middleware
 
-let jwksClient: createJwksClient.JwksClient;
+// Created once, caches the signing keys
+let jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
+
+function getToken(event: H3Event): string | undefined {
+  const tokensCookie = getCookie(event, tokensCookieName);
+  if (!tokensCookie) return getHeader(event, "Authorization")?.split(" ")[1];
+  try {
+    return JSON.parse(tokensCookie).access_token;
+  } catch {
+    return undefined;
+  }
+}
 
 export default defineEventHandler(async (event) => {
-  if (!oidcConfig) throw new Error("Missing OIDC config");
-  // NOTE: this server middleware works independently from the front-end logic such as route middleware
-  // The only shared logic is getOidcConfig
+  const { pathname } = getRequestURL(event);
 
-  const { path } = event;
+  // Only deal with API routes, except the oauth ones (login, callback)
+  if (!pathname.startsWith("/api/") || pathname.startsWith(`${oauthRoutes}/`)) return;
 
-  // Allowing access to oauth server routes, namely callback
-  if (path.startsWith(oauthRoutes)) return;
-
-  // // Only deal with API routes
-  if (!path.startsWith("/api")) return;
-  if (!jwksClient) {
-    // Create client if it does not exist yet
-    const { jwks_uri } = oidcConfig;
-    jwksClient = createJwksClient({
-      jwksUri: jwks_uri,
-      cache: true,
-      rateLimit: true,
-    });
-  }
-
-  let token: string | undefined;
-
-  const oidcCookie = getCookie(event, tokensCookieName);
-
-  if (oidcCookie) token = JSON.parse(oidcCookie).access_token;
-  else token = getHeader(event, "Authorization")?.split(" ")[1];
-
+  const token = getToken(event);
   if (!token)
     throw createError({
       statusCode: 401,
       statusMessage: "Token not found in either cookie or authorization header",
     });
 
-  const decoded = jwt.decode(token, { complete: true });
-  if (!decoded)
-    throw createError({
-      statusCode: 401,
-      statusMessage: "Decoded token is null",
-    });
+  const { issuer, jwks_uri } = await useOidcConfig();
+  jwks ??= createRemoteJWKSet(new URL(jwks_uri));
+  const { audience } = parsePublicConfig(useRuntimeConfig(event).public);
 
-  const kid = decoded.header?.kid;
-  if (!kid)
-    throw createError({
-      statusCode: 401,
-      statusMessage: "kid missing in token",
-    });
-
-  const key = await jwksClient.getSigningKey(kid);
-
-  const verified = jwt.verify(token, key.getPublicKey());
-
-  // TODO: handle cases where verification failed
-
-  (event.context as any).user = verified;
+  try {
+    const { payload } = await jwtVerify(token, jwks, { issuer, audience });
+    event.context.user = payload;
+  } catch {
+    throw createError({ statusCode: 401, statusMessage: "Invalid token" });
+  }
 });

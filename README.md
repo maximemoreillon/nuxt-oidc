@@ -35,6 +35,9 @@ export default defineNuxtConfig({
 
 ### Publishing
 
+Pushing a tag publishes the package to NPM via GitHub Actions:
+
 ```
-npm run release
+npm version patch
+git push --follow-tags
 ```

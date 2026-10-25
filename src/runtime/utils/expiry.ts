@@ -1,19 +1,7 @@
-import type { TokenSet } from "../composables/auth";
+// expires_at is stored as epoch milliseconds so that it survives JSON serialization in cookies
+export const isExpired = (expires_at: number) => Date.now() >= expires_at;
 
-export function makeExpiryDate(expires_in: number | string) {
-  const expiryDate = new Date();
-  const time = expiryDate.getTime();
-  const expiryTime = time + 1000 * Number(expires_in);
-  expiryDate.setTime(expiryTime);
-  return expiryDate;
-}
-
-export function isExpired(expires_at: string | Date) {
-  const expiryDate = new Date(expires_at);
-  return new Date().getTime() - expiryDate.getTime() > 0;
-}
-
-export function getTokensWithExpiresAt(tokenSet: TokenSet) {
-  const expires_at = makeExpiryDate(tokenSet.expires_in);
-  return { ...tokenSet, expires_at };
-}
+export const withExpiresAt = <T extends { expires_in: number }>(tokens: T) => ({
+  ...tokens,
+  expires_at: Date.now() + tokens.expires_in * 1000,
+});

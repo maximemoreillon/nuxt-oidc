@@ -1,36 +1,51 @@
-// NOTE: this handler is currently unused
-import { defineEventHandler } from "h3";
-import publicRuntimeConfigSchema from "../../../shared/publicRuntimeConfigSchema";
-import { redirectPath, verifierCookieName } from "../../../shared/constants";
-import { createPkcePair } from "../../../utils/pkce";
-import { oidcConfig } from "../../oidcConfig";
+import { defineEventHandler, getQuery, getRequestURL, sendRedirect, setCookie } from "h3";
 import { useRuntimeConfig } from "#imports";
+import {
+  flowCookieOptions,
+  hrefCookieName,
+  stateCookieName,
+  verifierCookieName,
+} from "../../../shared/constants";
+import { parsePublicConfig } from "../../../shared/config";
+import { getRedirectUri } from "../../../shared/oidc";
+import { useOidcConfig } from "../../oidcConfig";
 
-const runtimeConfig = useRuntimeConfig();
-const { oidcClientId, oidcAudience } = publicRuntimeConfigSchema.parse(
-  runtimeConfig.public
-);
+// NOTE: PKCE is done server-side because crypto.subtle is unavailable in browsers on plain HTTP
+const base64Url = (bytes: ArrayBuffer | Uint8Array) =>
+  btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+const randomString = () => base64Url(crypto.getRandomValues(new Uint8Array(32)));
 
 export default defineEventHandler(async (event) => {
-  // Fetching OIDC config only once
+  const { client_id, audience } = parsePublicConfig(useRuntimeConfig(event).public);
+  const { authorization_endpoint } = await useOidcConfig();
 
-  if (!oidcConfig) throw new Error("Missing OIDC config");
+  const verifier = randomString();
+  const challenge = base64Url(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))
+  );
+  const state = randomString();
 
-  const { authorization_endpoint } = oidcConfig;
-  const { origin } = getRequestURL(event);
-  const redirect_uri = `${origin}${redirectPath}`;
+  setCookie(event, verifierCookieName, verifier, flowCookieOptions);
+  setCookie(event, stateCookieName, state, flowCookieOptions);
 
-  const { verifier, challenge } = createPkcePair();
-  setCookie(event, verifierCookieName, verifier);
+  // Keep track of the page the user wanted to go to originally, only allowing same-origin paths
+  const { redirect } = getQuery(event);
+  if (typeof redirect === "string" && redirect.startsWith("/") && !redirect.startsWith("//"))
+    setCookie(event, hrefCookieName, redirect, flowCookieOptions);
 
   const authUrl = new URL(authorization_endpoint);
   authUrl.searchParams.append("response_type", "code");
-  authUrl.searchParams.append("client_id", oidcClientId);
+  authUrl.searchParams.append("client_id", client_id);
   authUrl.searchParams.append("scope", "openid profile offline_access"); // TODO: customizable
   authUrl.searchParams.append("code_challenge_method", "S256");
   authUrl.searchParams.append("code_challenge", challenge);
-  authUrl.searchParams.append("redirect_uri", redirect_uri);
-  if (oidcAudience) authUrl.searchParams.append("audience", oidcAudience);
+  authUrl.searchParams.append("state", state);
+  authUrl.searchParams.append("redirect_uri", getRedirectUri(getRequestURL(event).origin));
+  if (audience) authUrl.searchParams.append("audience", audience);
 
-  return await sendRedirect(event, authUrl.toString());
+  return sendRedirect(event, authUrl.toString());
 });

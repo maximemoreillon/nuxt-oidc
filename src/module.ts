@@ -5,8 +5,7 @@ import {
   addRouteMiddleware,
   addImportsDir,
 } from "@nuxt/kit";
-import { oauthRoutes, redirectPath } from "./runtime/shared/constants";
-import { defu } from "defu";
+import { loginPath, redirectPath } from "./runtime/shared/constants";
 
 // Module options TypeScript interface definition
 export interface ModuleOptions {}
@@ -16,27 +15,22 @@ export default defineNuxtModule<ModuleOptions>({
     name: "oidc",
     configKey: "oidc",
   },
-  // Default configuration options of the Nuxt module
-  defaults: {},
-  // Apparently, setup can be async
-  async setup(options, nuxt) {
+  setup() {
     const { resolve } = createResolver(import.meta.url);
 
     // TODO: Ideally, would want to fetch OIDC config here and share it with all components
-    // Could use "Exposing Options to Runtime" from https://nuxt.com/docs/4.x/guide/going-further/modules#exposing-options-to-runtime
     // PROBLEM: environment variables are not injected yet!
-    // const { oidcAuthority } = nuxt.options.runtimeConfig.public
 
     // Server middleware protects API routes
     addServerHandler({
       handler: resolve("./runtime/server/middleware/auth"),
     });
 
-    // Login server route
-    // addServerHandler({
-    //   route: `${oauthRoutes}/login`,
-    //   handler: resolve("./runtime/server/api/oauth/login"),
-    // });
+    // Login server route, generates the PKCE pair and redirects to the OIDC provider
+    addServerHandler({
+      route: loginPath,
+      handler: resolve("./runtime/server/api/oauth/login"),
+    });
 
     // Callback server route
     addServerHandler({
